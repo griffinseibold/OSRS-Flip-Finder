@@ -1,45 +1,34 @@
+/* Colours follow the system setting unless the header's theme switch sets
+   data-theme on <html>. Each token gives its light value, then its dark one. */
 :root {
-  color-scheme: light;
-  --page: #f9f9f7;
-  --surface: #fcfcfb;
-  --surface-raised: #f3f2ee;
-  --ink: #0b0b0b;
-  --ink-secondary: #52514e;
-  --ink-muted: #6b6a64;
-  --border: rgba(11, 11, 11, 0.1);
-  --grid: #e1e0d9;
-  --accent: #256abf;
-  --accent-soft: rgba(42, 120, 214, 0.07);
-  --meter-track: #cde2fb;
-  --profit: #006300;
-  --loss: #c42f2f;
-  --warning-ink: #7a5200;
-  --warning-bg: #fdf3dc;
-  --warning-border: #fab219;
+  color-scheme: light dark;
+  --page: light-dark(#f9f9f7, #0d0d0d);
+  --surface: light-dark(#fcfcfb, #1a1a19);
+  --surface-raised: light-dark(#f3f2ee, #232321);
+  --ink: light-dark(#0b0b0b, #ffffff);
+  --ink-secondary: light-dark(#52514e, #c3c2b7);
+  --ink-muted: light-dark(#6b6a64, #9a9891);
+  --border: light-dark(rgba(11, 11, 11, 0.1), rgba(255, 255, 255, 0.1));
+  --grid: light-dark(#e1e0d9, #2c2c2a);
+  --accent: light-dark(#256abf, #5598e7);
+  --accent-soft: light-dark(rgba(42, 120, 214, 0.07), rgba(85, 152, 231, 0.09));
+  --meter-track: light-dark(#cde2fb, #0d366b);
+  --profit: light-dark(#006300, #0ca30c);
+  --loss: light-dark(#c42f2f, #e66767);
+  --warning-ink: light-dark(#7a5200, #f5c451);
+  --warning-bg: light-dark(#fdf3dc, #2a2415);
+  --warning-border: light-dark(#fab219, #8a6a1c);
+  --members: light-dark(#b07d00, #f5c451);
   --radius: 10px;
   --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --surface-raised: #232321;
-    --ink: #ffffff;
-    --ink-secondary: #c3c2b7;
-    --ink-muted: #9a9891;
-    --border: rgba(255, 255, 255, 0.1);
-    --grid: #2c2c2a;
-    --accent: #5598e7;
-    --accent-soft: rgba(85, 152, 231, 0.09);
-    --meter-track: #0d366b;
-    --profit: #0ca30c;
-    --loss: #e66767;
-    --warning-ink: #f5c451;
-    --warning-bg: #2a2415;
-    --warning-border: #8a6a1c;
-  }
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 *,
@@ -132,9 +121,24 @@ h3 {
 
 .status {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   color: var(--ink-secondary);
+}
+
+.theme-switch {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.theme-switch .segmented-options {
+  height: 32px;
+}
+
+.theme-switch .segmented-options label {
+  padding: 0 10px;
 }
 
 .button {
@@ -535,13 +539,7 @@ h3 {
 
 .tag-members {
   padding: 0 4px;
-  color: #b07d00;
-}
-
-@media (prefers-color-scheme: dark) {
-  .tag-members {
-    color: #f5c451;
-  }
+  color: var(--members);
 }
 
 .empty {

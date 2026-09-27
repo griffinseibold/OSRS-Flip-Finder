@@ -3,6 +3,7 @@ import { useId } from 'react';
 import type { Membership, PriceBasis } from '../lib/api';
 import { formatGp, parseCoins } from '../lib/format';
 import { TRADE_AGE_OPTIONS, VOLUME_OPTIONS, type Settings } from '../settings';
+import { Segmented } from './Segmented';
 
 interface FiltersProps {
   settings: Settings;
@@ -115,35 +116,5 @@ export function Filters({ settings, onChange, search, onSearchChange }: FiltersP
         </p>
       </div>
     </section>
-  );
-}
-
-interface SegmentedProps<T extends string> {
-  legend: string;
-  name: string;
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (value: T) => void;
-}
-
-function Segmented<T extends string>({ legend, name, value, options, onChange }: SegmentedProps<T>) {
-  return (
-    <fieldset className="field segmented">
-      <legend>{legend}</legend>
-      <div className="segmented-options">
-        {options.map((option) => (
-          <label key={option.value} className={option.value === value ? 'selected' : undefined}>
-            <input
-              type="radio"
-              name={name}
-              value={option.value}
-              checked={option.value === value}
-              onChange={() => onChange(option.value)}
-            />
-            {option.label}
-          </label>
-        ))}
-      </div>
-    </fieldset>
   );
 }

@@ -7,6 +7,13 @@
     <meta name="description" content="Old School RuneScape Grand Exchange flips ranked by margin after tax." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>OSRS Flip Finder</title>
+    <script>
+      // Apply a saved light or dark theme before the first paint (see src/hooks/useTheme.ts).
+      try {
+        var theme = localStorage.getItem('flipfinder.theme');
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
