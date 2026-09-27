@@ -50,8 +50,10 @@ database, and a Spring profile chooses where it lives:
 - `homelab` stores it in the file at `FLIPFINDER_DB_PATH`, `/data/flipfinder.db`
   by default, on the homelab's persistent volume. It also turns on the
   endpoints that receive data from the RuneLite plugin
-  (`flipfinder.runelite.enabled`) and the chat, which calls the language
-  model at `FLIPFINDER_LLM_URL` (`flipfinder.llm.base-url`).
+  (`flipfinder.runelite.enabled`), keeps
+  [trading history](homelab.md#trading-history) (`flipfinder.history.enabled`),
+  and turns on the chat, which calls the language model at `FLIPFINDER_LLM_URL`
+  (`flipfinder.llm.base-url`).
 
 Their settings are in
 [`application-local.properties`](../backend/src/main/resources/application-local.properties)

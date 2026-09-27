@@ -77,7 +77,7 @@ class LlmClientTests {
                 "[DONE]");
 
         LlmClient.Reply reply = client.complete(List.of(LlmClient.message("user", "Best ROI?")),
-                ChatService.TOOLS, text -> { });
+                List.of(ChatService.FIND_FLIPS), text -> { });
 
         assertThat(reply.toolCalls()).containsExactly(new LlmClient.ToolCall("call-1", "find_flips", "{\"sort\":\"roi\"}"));
         assertThat(reply.finishReason()).isEqualTo("tool_calls");
@@ -87,7 +87,7 @@ class LlmClientTests {
     void streamsWithThinkingOffAndOffersTheTools() throws Exception {
         LlmClient client = serve(200, "{\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}", "[DONE]");
 
-        client.complete(List.of(LlmClient.message("user", "Hi")), ChatService.TOOLS, text -> { });
+        client.complete(List.of(LlmClient.message("user", "Hi")), List.of(ChatService.FIND_FLIPS), text -> { });
 
         JsonNode body = mapper.readTree(requestBody.get());
         assertThat(body.path("stream").asBoolean()).isTrue();

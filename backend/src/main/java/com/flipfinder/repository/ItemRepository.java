@@ -8,6 +8,7 @@ import com.flipfinder.dto.ItemDto;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class ItemRepository {
@@ -27,6 +28,10 @@ public class ItemRepository {
 
     public List<ItemDto> findAll() {
         return jdbc.query(SELECT_ITEMS, ItemRepository::mapItem);
+    }
+
+    public Optional<ItemDto> findById(int id) {
+        return jdbc.query(SELECT_ITEMS + " WHERE id = ?", ItemRepository::mapItem, id).stream().findFirst();
     }
 
     private static final String SELECT_ITEMS = """

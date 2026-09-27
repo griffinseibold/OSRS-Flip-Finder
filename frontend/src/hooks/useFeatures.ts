@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { fetchFeatures, type Features } from '../lib/api';
 
-const STANDALONE: Features = { chat: false, runelite: false };
+const STANDALONE: Features = { chat: false, history: false, runelite: false };
 
 /** The server's optional features; null until known. A server that cannot say is treated as standalone. */
 export function useFeatures(): Features | null {

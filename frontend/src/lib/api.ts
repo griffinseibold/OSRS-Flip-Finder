@@ -116,6 +116,8 @@ export async function fetchFlips(url: string, signal?: AbortSignal): Promise<Fli
 export interface Features {
   /** Answers questions with the homelab's language model. */
   chat: boolean;
+  /** Keeps trading history to compare the latest trading with. */
+  history: boolean;
   /** Accepts account data from the RuneLite plugin. */
   runelite: boolean;
 }
@@ -177,9 +179,46 @@ export interface ChatMessage {
 }
 
 /** What /api/chat streams back, one JSON object per line. */
+/** How an item's latest trading compares with its stored history. Volumes count both sides. */
+export interface ItemHistory {
+  itemId: number;
+  name: string;
+  icon: string | null;
+  fiveMinuteHours: number;
+  hourlyDays: number;
+  volume: {
+    latestBucket: number | null;
+    last5m: number | null;
+    typical5m: number | null;
+    typical5mThisHour: number | null;
+    ratio: number | null;
+    percentile: number | null;
+    lastHour: number | null;
+    typicalHour: number | null;
+    lastHourRatio: number | null;
+    verdict: string | null;
+  };
+  price: {
+    current: number | null;
+    change24hPercent: number | null;
+    change7dPercent: number | null;
+    change30dPercent: number | null;
+    low: number | null;
+    high: number | null;
+  };
+  margin: {
+    current: number | null;
+    typical: number | null;
+    ratio: number | null;
+    verdict: string | null;
+  };
+  notes: string[];
+}
+
 export type ChatEvent =
   | { type: 'tool'; name: string; search: string; budget: number | null }
   | { type: 'flips'; search: string; budget: number | null; sort: SortKey; total: number; items: Flip[] }
+  | { type: 'history'; search: string; history: ItemHistory | null }
   | { type: 'text'; text: string }
   | { type: 'error'; message: string }
   | { type: 'done' };

@@ -5,8 +5,8 @@ On the [homelab], Argo CD deploys the Helm chart in
 branch. The homelab version keeps its price database on a persistent volume,
 and features that rely on the homelab are enabled by its `homelab` Spring
 profile: receiving account data from the
-[RuneLite plugin](runelite-plugin.md), and the chat, which runs on the
-homelab's language model.
+[RuneLite plugin](runelite-plugin.md), keeping trading history, and the chat,
+which runs on the homelab's language model.
 
 ## The chart
 
@@ -39,6 +39,38 @@ same query as `/api/flips` for the selected account, so it needs a model and
 server with tool calling; the homelab's Qwen3 does, with its thinking turned
 off to answer faster. The server's slots are shared with the homelab's other
 users, so an answer can wait while they are busy.
+
+## Trading history
+
+The homelab version stores each item's average prices and volumes from the
+wiki's `/5m` and `/1h` endpoints, so the chat can tell whether an item's latest
+trading is typical. It keeps:
+
+| History | Kept for | Rows | Disk |
+| --- | --- | --- | --- |
+| Five-minute buckets | 7 days | About 3.6 million | About 95 MB |
+| Hourly buckets | 30 days | About 2.4 million | About 60 MB |
+
+On its first start it fetches the last 24 hours of five-minute buckets and 30
+days of hourly ones, about 1,000 requests. It spreads them out, a request
+every second and a half in batches of 20, so the backfill takes under an hour;
+until then the chat says when it lacks the history to judge. After that it fetches each new bucket
+as the wiki publishes it, catches up on gaps after a restart, and deletes
+buckets older than it keeps once an hour.
+
+The chat reads the history with its `item_history` tool, and the numbers are
+worked out by the server rather than the language model, which is unreliable
+at arithmetic over hundreds of values. No model training is involved: prices
+change every five minutes, so the model looks them up instead of remembering
+them.
+
+These settings change what is kept:
+
+| Property | Default |
+| --- | --- |
+| `flipfinder.history.five-minute-days` | `7` |
+| `flipfinder.history.hourly-days` | `30` |
+| `flipfinder.history.five-minute-backfill-hours` | `24` |
 
 ## Registering with Argo CD
 

@@ -24,6 +24,7 @@ local language model. Ask it things like:
 - What should I flip right now?
 - What could I make with 50M?
 - Is dragon bones a good flip?
+- Is dragon bones trading more than usual?
 - Which of my buy limits reset soonest?
 
 Once the [RuneLite plugin](runelite-plugin.md) has reported your account, the
@@ -36,6 +37,25 @@ The model looks flips up with the same ranking as the table, then summarizes
 the best few. **Based on N flips** under an answer opens the rows it read, so
 you can check its numbers. Language models can still misread or leave things
 out, so check the price before you commit a lot of coins.
+
+### Is this normal?
+
+A big margin on an item that suddenly trades ten times its usual volume is
+often a short-lived spike: the price moves before your offers fill. The
+homelab keeps a week of five-minute trading and a month of hourly trading, so
+the chat can say whether an item's latest volume, price and margin are typical:
+
+- **Volume** is compared with the same time of day on earlier days, since the
+  Grand Exchange is much busier in some hours than others. Three times the usual
+  volume or more counts as unusually high, and the last hour shows whether a
+  surge has lasted or was a short burst.
+- **Price** is compared with a day, a week and 30 days ago.
+- **Margin** is compared with the usual gap between buy and sell prices. A
+  margin much wider than usual often closes before offers fill.
+
+When the chat suggests flips it also mentions any with unusual volume.
+**Based on N days of history** under an answer shows the comparison it used.
+History fills in over the first hour after the homelab version starts.
 
 ## The columns
 

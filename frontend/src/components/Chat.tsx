@@ -4,8 +4,9 @@ import { streamChat, type Account, type ChatEvent, type ChatMessage } from '../l
 import { formatCompact } from '../lib/format';
 import { Markdown } from '../lib/markdown';
 import { FlipLookup } from './FlipLookup';
+import { HistoryLookup } from './HistoryLookup';
 
-type Lookup = Extract<ChatEvent, { type: 'flips' }>;
+type Lookup = Extract<ChatEvent, { type: 'flips' | 'history' }>;
 
 interface Turn {
   role: 'user' | 'assistant';
@@ -18,15 +19,20 @@ interface Turn {
 }
 
 const SUGGESTIONS = ['What should I flip right now?', 'What could I make with 50M?', 'Is dragon bones a good flip?'];
+const HISTORY_SUGGESTION = 'Is dragon bones trading more than usual?';
 
 /** A conversation with the homelab's language model about flips for the selected account. */
-export function Chat({ account }: { account: Account | null }) {
+export function Chat({ account, history }: { account: Account | null; history: boolean }) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState('');
   const controller = useRef<AbortController | null>(null);
   const log = useRef<HTMLDivElement>(null);
   const busy = turns.at(-1)?.pending ?? false;
-  const suggestions = account?.buyLimits.length ? [...SUGGESTIONS, 'Which of my buy limits reset soonest?'] : SUGGESTIONS;
+  const suggestions = [
+    ...SUGGESTIONS,
+    ...(history ? [HISTORY_SUGGESTION] : []),
+    ...(account?.buyLimits.length ? ['Which of my buy limits reset soonest?'] : []),
+  ];
 
   // Follow the answer as it streams, scrolling only the conversation, not the page.
   useEffect(() => {
@@ -68,6 +74,7 @@ export function Chat({ account }: { account: Account | null }) {
             updateAnswer((turn) => ({ ...turn, status: lookupStatus(event) }));
             break;
           case 'flips':
+          case 'history':
             updateAnswer((turn) => ({ ...turn, lookups: [...turn.lookups, event] }));
             break;
           case 'text':
@@ -139,9 +146,13 @@ export function Chat({ account }: { account: Account | null }) {
                   {turn.error}
                 </p>
               )}
-              {turn.lookups.map((lookup, lookupIndex) => (
-                <FlipLookup key={lookupIndex} lookup={lookup} />
-              ))}
+              {turn.lookups.map((lookup, lookupIndex) =>
+                lookup.type === 'flips' ? (
+                  <FlipLookup key={lookupIndex} lookup={lookup} />
+                ) : (
+                  <HistoryLookup key={lookupIndex} lookup={lookup} />
+                ),
+              )}
             </div>
           ),
         )}
@@ -178,6 +189,9 @@ export function Chat({ account }: { account: Account | null }) {
 }
 
 function lookupStatus(event: Extract<ChatEvent, { type: 'tool' }>): string {
+  if (event.name === 'item_history') {
+    return `Checking the history of “${event.search}”…`;
+  }
   if (event.search) {
     return `Looking up “${event.search}”…`;
   }
