@@ -1,5 +1,6 @@
-/* Colours follow the system setting unless the header's theme switch sets
-   data-theme on <html>. Each token gives its light value, then its dark one. */
+/* index.html sets data-theme on <html> to the saved theme or the system's;
+   without it the colours follow the system. Each token gives its light value,
+   then its dark one. */
 :root {
   color-scheme: light dark;
   --page: light-dark(#f9f9f7, #0d0d0d);
@@ -127,18 +128,31 @@ h3 {
   color: var(--ink-secondary);
 }
 
-.theme-switch {
-  margin: 0;
+/* A round icon button, like the theme switch on griffinseibold.com. */
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
   padding: 0;
   border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
 }
 
-.theme-switch .segmented-options {
-  height: 32px;
+.icon-button:hover {
+  background: var(--surface-raised);
+  color: var(--ink);
 }
 
-.theme-switch .segmented-options label {
-  padding: 0 10px;
+.icon-button svg {
+  width: 1.125rem;
+  height: 1.125rem;
 }
 
 .button {

@@ -44,9 +44,10 @@ By default the list also hides items that have not traded on both sides within
 the last hour or traded fewer than ten times in the last five minutes. Set a
 **budget** (such as `10m`) to hide items that cost more than you have and
 limit each flip to what you can afford. Filters, sorting, the budget and the
-light, dark or automatic theme (switched in the header) are remembered in the
-browser. Selecting an item shows every field the API returns for it, the
-four-hour estimate step by step, and links to the OSRS Wiki.
+light or dark theme are remembered in the browser; the sun and moon button in
+the header switches theme, which starts from the system setting. Selecting an
+item shows every field the API returns for it, the four-hour estimate step by
+step, and links to the OSRS Wiki.
 
 ## API
 
@@ -135,8 +136,8 @@ cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
-Local development defaults to port `8081`, leaving the homelab Gateway free to
-use port `8080`. It also uses the `local` Spring profile and an in-memory
+Local development defaults to port `8081`, leaving the [homelab] Gateway free
+to use port `8080`. It also uses the `local` Spring profile and an in-memory
 database, so each restart begins with an empty schema and repopulates it:
 
 - API: <http://localhost:8081/api/flips> and <http://localhost:8081/api/items>
@@ -168,8 +169,8 @@ npm run dev
 ```
 
 Open <http://localhost:5173>. The Vite dev server reloads on save and forwards
-`/api` and Swagger requests to the backend at `http://localhost:8081`. Point it
-at another backend, such as the homelab deployment, with
+`/api` and Swagger requests to the backend at `http://localhost:8081`. Point
+it at another backend, such as the [homelab] deployment, with
 `FLIPFINDER_API_URL`:
 
 ```bash
@@ -232,9 +233,9 @@ git push origin v0.1.0
 
 Update `image.tag` and `appVersion` in the chart when releasing a new version.
 
-## Homelab deployment
+## [Homelab] deployment
 
-[`chart/flipfinder`](chart/flipfinder) follows the homelab application contract:
+[`chart/flipfinder`](chart/flipfinder) follows the [homelab] application contract:
 
 - Argo CD can sync the chart directly from this repository.
 - The namespace receives `gateway.homelab/access: public`.
@@ -243,16 +244,52 @@ Update `image.tag` and `appVersion` in the chart when releasing a new version.
 - The `homelab` Spring profile stores SQLite on a 1 Gi `ReadWriteOnce` PVC.
 - One replica is used because a persistent SQLite database has one writer.
 
-Register the repository and `chart/flipfinder` path in Argo CD with destination
-namespace `flipfinder`. The default chart values expose:
+Argo CD deploys the chart from `master`. Register it once by applying this
+Application, which matches the other [homelab] applications:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: flipfinder
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/griffinseibold/Flip-Finder
+    path: chart/flipfinder
+    targetRevision: master
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: flipfinder
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+```
+
+```bash
+kubectl --context kind-homelab-dev apply -f flipfinder-application.yaml
+```
+
+Argo CD then keeps the cluster in line with `master`: a merged chart change is
+applied automatically. To ship new code, [release](#releases) a new image and
+update `image.tag` and `appVersion` on `master`. The default chart values
+expose:
 
 - Web app: <http://flipfinder.localhost:8080>
 - API: <http://flipfinder.localhost:8080/api/items>
 - Swagger UI: <http://flipfinder.localhost:8080/swagger-ui.html>
 
-For a direct Helm deployment rather than Argo CD:
+For a direct Helm deployment rather than Argo CD, build the image and load it
+into the Kind cluster, so nothing is pulled from the container registry. Use
+one method or the other: while the Argo CD Application exists, it owns these
+resources.
 
 ```bash
+tag=$(git rev-parse --short HEAD)
+docker build --tag "flipfinder:$tag" .
+kind load docker-image "flipfinder:$tag" --name homelab-dev
 kubectl --context kind-homelab-dev create namespace flipfinder \
   --dry-run=client -o yaml | kubectl --context kind-homelab-dev apply -f -
 kubectl --context kind-homelab-dev label namespace flipfinder \
@@ -260,8 +297,13 @@ kubectl --context kind-homelab-dev label namespace flipfinder \
 helm upgrade --install flipfinder chart/flipfinder \
   --kube-context kind-homelab-dev \
   --namespace flipfinder \
-  --set namespace.create=false
+  --set namespace.create=false \
+  --set image.repository=flipfinder \
+  --set "image.tag=$tag"
 ```
+
+To update the deployment, commit, then run the same commands again: the new
+commit gives the image a new tag, and Helm rolls the pod onto it.
 
 Validate the chart without deploying it:
 
@@ -308,3 +350,5 @@ lists these important constraints:
 For a real-time production pipeline, the API maintainers also ask users to
 join the RuneScape Wiki Discord `#api-discussion` channel for maintenance and
 breaking-change announcements.
+
+[homelab]: https://github.com/griffinseibold/Homelab

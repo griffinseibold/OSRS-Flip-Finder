@@ -1,40 +1,36 @@
 import { useEffect, useState } from 'react';
 
-export type Theme = 'auto' | 'light' | 'dark';
+export type Theme = 'light' | 'dark';
 
 // index.html reads this key too, to apply the theme before the first paint.
 const STORAGE_KEY = 'flipfinder.theme';
 
-function readTheme(): Theme {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === 'light' || stored === 'dark' ? stored : 'auto';
-  } catch {
-    return 'auto';
+/** The theme index.html applied: the saved choice, otherwise the system's. */
+function initialTheme(): Theme {
+  const applied = document.documentElement.dataset.theme;
+  if (applied === 'light' || applied === 'dark') {
+    return applied;
   }
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-/** The colour theme: the system's ('auto') or one the viewer picked, remembered in this browser. */
-export function useTheme(): [Theme, (theme: Theme) => void] {
-  const [theme, setTheme] = useState(readTheme);
+/** Light or dark: the system setting until the viewer switches, then their choice. */
+export function useTheme(): [Theme, () => void] {
+  const [theme, setTheme] = useState(initialTheme);
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'auto') {
-      delete root.dataset.theme;
-    } else {
-      root.dataset.theme = theme;
-    }
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  const toggle = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
     try {
-      if (theme === 'auto') {
-        localStorage.removeItem(STORAGE_KEY);
-      } else {
-        localStorage.setItem(STORAGE_KEY, theme);
-      }
+      localStorage.setItem(STORAGE_KEY, next);
     } catch {
       // Not remembering the theme is harmless.
     }
-  }, [theme]);
+  };
 
-  return [theme, setTheme];
+  return [theme, toggle];
 }

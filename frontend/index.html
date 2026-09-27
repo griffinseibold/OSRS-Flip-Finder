@@ -8,11 +8,17 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>OSRS Flip Finder</title>
     <script>
-      // Apply a saved light or dark theme before the first paint (see src/hooks/useTheme.ts).
-      try {
-        var theme = localStorage.getItem('flipfinder.theme');
-        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
-      } catch (e) {}
+      // Apply the saved theme, or else the system's, before the first paint (see src/hooks/useTheme.ts).
+      (function () {
+        var theme;
+        try {
+          theme = localStorage.getItem('flipfinder.theme');
+        } catch (e) {}
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.dataset.theme = theme;
+      })();
     </script>
   </head>
   <body>
