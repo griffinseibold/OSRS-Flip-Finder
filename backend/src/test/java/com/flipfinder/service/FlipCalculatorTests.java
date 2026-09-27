@@ -107,7 +107,7 @@ class FlipCalculatorTests {
     }
 
     @Test
-    void cashStackLimitsTheQuantity() {
+    void budgetLimitsTheQuantity() {
         ItemDto item = item();
         item.highPriceVolume5m = 100L;
         item.lowPriceVolume5m = 100L;
@@ -116,7 +116,7 @@ class FlipCalculatorTests {
 
         assertThat(flip.quantity).isEqualTo(50);
         assertThat(flip.fillableQuantity).isEqualTo(50);
-        assertThat(flip.limitedBy).isEqualTo(LimitedBy.CASH_STACK);
+        assertThat(flip.limitedBy).isEqualTo(LimitedBy.BUDGET);
         assertThat(flip.estimatedProfit).isEqualTo(4_000);
     }
 
@@ -157,15 +157,20 @@ class FlipCalculatorTests {
     }
 
     @Test
-    void unknownBuyLimitLeavesOnlyTheVolumeCap() {
+    void unknownBuyLimitIsNotTreatedAsUnlimited() {
         ItemDto item = item();
         item.buyLimit = null;
 
-        FlipDto flip = FlipCalculator.calculate(item, PriceBasis.LATEST, null);
+        for (Long budget : new Long[] { null, 45_000L }) {
+            FlipDto flip = FlipCalculator.calculate(item, PriceBasis.LATEST, budget);
 
-        assertThat(flip.quantity).isNull();
-        assertThat(flip.potentialProfit).isNull();
-        assertThat(flip.fillableQuantity).isEqualTo(384);
-        assertThat(flip.estimatedProfit).isEqualTo(80 * 384);
+            assertThat(flip.margin).isEqualTo(80);
+            assertThat(flip.volume5m).isEqualTo(20);
+            assertThat(flip.quantity).isNull();
+            assertThat(flip.fillableQuantity).isNull();
+            assertThat(flip.limitedBy).isNull();
+            assertThat(flip.potentialProfit).isNull();
+            assertThat(flip.estimatedProfit).isNull();
+        }
     }
 }

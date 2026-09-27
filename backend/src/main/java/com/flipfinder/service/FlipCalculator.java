@@ -40,7 +40,7 @@ public final class FlipCalculator {
         return Math.min(sellPrice * TAX_PERCENT / 100, TAX_CAP);
     }
 
-    public static FlipDto calculate(ItemDto item, PriceBasis basis, Long cashStack) {
+    public static FlipDto calculate(ItemDto item, PriceBasis basis, Long budget) {
         FlipDto flip = new FlipDto();
         flip.item = item;
         flip.buyPrice = basis == PriceBasis.LATEST ? item.lowPrice : round(item.averageLowPrice5m);
@@ -51,31 +51,38 @@ public final class FlipCalculator {
             flip.roi = flip.buyPrice > 0 ? (double) flip.margin / flip.buyPrice : null;
         }
 
-        // How many to buy: one buy limit, or fewer if the cash stack runs out first.
-        Long limit = item.buyLimit == null ? null : item.buyLimit.longValue();
-        Long affordable = cashStack == null || flip.buyPrice == null || flip.buyPrice <= 0
-                ? null
-                : cashStack / flip.buyPrice;
-        boolean cashLimited = affordable != null && (limit == null || affordable < limit);
-        flip.quantity = cashLimited ? affordable : limit;
-
-        // How many could actually fill: buy offers fill from instant sells and
-        // sell offers from instant buys, so the slower side sets the pace.
         if (item.highPriceVolume5m != null || item.lowPriceVolume5m != null) {
             flip.volume5m = orZero(item.highPriceVolume5m) + orZero(item.lowPriceVolume5m);
         }
-        long pace = WINDOWS_PER_BUY_LIMIT * Math.min(orZero(item.highPriceVolume5m), orZero(item.lowPriceVolume5m));
-        if (flip.quantity == null || pace < flip.quantity) {
-            flip.fillableQuantity = pace;
-            flip.limitedBy = LimitedBy.VOLUME;
-        } else {
-            flip.fillableQuantity = flip.quantity;
-            flip.limitedBy = cashLimited ? LimitedBy.CASH_STACK : LimitedBy.BUY_LIMIT;
-        }
 
-        if (flip.margin != null) {
-            flip.potentialProfit = flip.quantity == null ? null : flip.margin * flip.quantity;
-            flip.estimatedProfit = flip.margin * flip.fillableQuantity;
+        // Every item has a buy limit, but about 500 have none documented on the
+        // wiki (https://oldschool.runescape.wiki/w/Grand_Exchange/Buying_limits).
+        // Without one there is no telling how many could be bought, so leave the
+        // quantity and profit estimates empty rather than assume no limit.
+        if (item.buyLimit != null) {
+            // How many to buy: one buy limit, or fewer if the budget runs out first.
+            long limit = item.buyLimit;
+            Long affordable = budget == null || flip.buyPrice == null || flip.buyPrice <= 0
+                    ? null
+                    : budget / flip.buyPrice;
+            boolean budgetLimited = affordable != null && affordable < limit;
+            flip.quantity = budgetLimited ? affordable : limit;
+
+            // How many could actually fill: buy offers fill from instant sells and
+            // sell offers from instant buys, so the slower side sets the pace.
+            long pace = WINDOWS_PER_BUY_LIMIT * Math.min(orZero(item.highPriceVolume5m), orZero(item.lowPriceVolume5m));
+            if (pace < flip.quantity) {
+                flip.fillableQuantity = pace;
+                flip.limitedBy = LimitedBy.VOLUME;
+            } else {
+                flip.fillableQuantity = flip.quantity;
+                flip.limitedBy = budgetLimited ? LimitedBy.BUDGET : LimitedBy.BUY_LIMIT;
+            }
+
+            if (flip.margin != null) {
+                flip.potentialProfit = flip.margin * flip.quantity;
+                flip.estimatedProfit = flip.margin * flip.fillableQuantity;
+            }
         }
         if (item.highPriceTime != null && item.lowPriceTime != null) {
             flip.lastTradeTime = Math.min(item.highPriceTime, item.lowPriceTime);

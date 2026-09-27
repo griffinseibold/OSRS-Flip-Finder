@@ -122,7 +122,9 @@ export function FlipTable({ page, basis, sortKey, sortDirection, onSort, onPageC
                     <td className="numeric">{formatGp(flip.sellPrice)}</td>
                     <td className={`numeric strong ${tone(flip.margin)}`}>{formatSignedGp(flip.margin)}</td>
                     <td className={`numeric ${tone(flip.roi)}`}>{formatRoi(flip.roi)}</td>
-                    <td className="numeric">{formatGp(item.buyLimit)}</td>
+                    <td className="numeric">
+                      {item.buyLimit === null ? <span className="secondary">unknown</span> : formatGp(item.buyLimit)}
+                    </td>
                     <td
                       className={`numeric ${tone(flip.potentialProfit)}`}
                       title={flip.potentialProfit === null ? undefined : `${formatSignedGp(flip.potentialProfit)} gp`}
@@ -135,7 +137,11 @@ export function FlipTable({ page, basis, sortKey, sortDirection, onSort, onPageC
                       title={flip.estimatedProfit === null ? undefined : `${formatSignedGp(flip.estimatedProfit)} gp`}
                     >
                       <span className="estimate">{formatCompact(flip.estimatedProfit, { signed: true })}</span>
-                      {flip.estimatedProfit !== null && <span className="cell-note">{fillNote(flip)}</span>}
+                      {item.buyLimit === null ? (
+                        <span className="cell-note">unknown limit</span>
+                      ) : (
+                        flip.estimatedProfit !== null && <span className="cell-note">{fillNote(flip)}</span>
+                      )}
                     </td>
                     <td className="numeric secondary">{formatAge(flip.lastTradeTime, nowSeconds)}</td>
                   </tr>

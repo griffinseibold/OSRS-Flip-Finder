@@ -1,14 +1,14 @@
 import type { FlipPage } from '../lib/api';
 import { formatCompact, formatGp } from '../lib/format';
 
-export function Summary({ page }: { page: FlipPage }) {
+export function Summary({ page, budget }: { page: FlipPage; budget: number | null }) {
   const share = (count: number) => (page.total ? `${Math.round((count / page.total) * 100)}% of shown` : '—');
   const top = page.topFlip;
 
   return (
     <dl className="summary">
       <div className="tile">
-        <dt>Items shown</dt>
+        <dt>{budget === null ? 'Items shown' : `Affordable on ${formatCompact(budget)}`}</dt>
         <dd className="tile-value">{formatGp(page.total)}</dd>
         <dd className="tile-detail">of {formatGp(page.itemCount)} items</dd>
       </div>

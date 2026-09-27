@@ -24,22 +24,28 @@ shows, for each item:
   sales under 50 gp and a short list of exempt items (such as bonds) pay none.
   Losing flips are shown in red.
 - **ROI**, **buy limit**, and **potential** profit: the margin across one
-  four-hour buy limit, or as many items as an optional cash stack affords.
+  four-hour buy limit, or as many items as your budget affords.
+  Limits come from the price API's item mapping, which carries the wiki's
+  [buying limits](https://oldschool.runescape.wiki/w/Grand_Exchange/Buying_limits)
+  list. About 500 items have no documented limit; rather than treat them as
+  unlimited, the app gives them no potential or estimated profit and ranks
+  them last.
 - **5-min volume:** items traded at the low and at the high price in the latest
   five-minute window. Buy offers fill from trades at the low price and sell
   offers from trades at the high price, so the slower side sets the pace. A bar
   shows how much of the quantity that pace fills in four hours.
 - **Est. profit:** the margin across what could fill in four hours (48
-  five-minute windows) at that pace, capped by the buy limit and cash stack,
+  five-minute windows) at that pace, capped by the buy limit and budget,
   and labelled with whichever of the three is the cap. This is the default
   ranking. It assumes every trade at your price is yours, so treat it as an
   upper bound.
 
-By default the list also hides items that have not traded on both sides
-within the last hour or traded fewer than ten times in the last five minutes.
-Filters, sorting and the cash stack are remembered in the browser. Selecting
-an item shows every field the API returns for it, the four-hour estimate step
-by step, and links to the OSRS Wiki.
+By default the list also hides items that have not traded on both sides within
+the last hour or traded fewer than ten times in the last five minutes. Set a
+**budget** (such as `10m`) to hide items that cost more than you have and
+limit each flip to what you can afford. Filters, sorting and the budget are
+remembered in the browser. Selecting an item shows every field the API returns
+for it, the four-hour estimate step by step, and links to the OSRS Wiki.
 
 ## API
 
@@ -69,22 +75,23 @@ upstream JSON is not stored or returned as an escaped `data` string.
 | `membership` | `all` | `all`, `f2p` or `members` |
 | `maxTradeAgeMinutes` | `0` | Both sides must have traded this recently; `0` for any time |
 | `minVolume5m` | `0` | Minimum items traded in the latest five-minute window |
-| `cashStack` | | Coins available: caps quantity and hides items that cost more |
+| `budget` | | Coins available: hides items that cost more and limits quantity to what it buys |
 
-For example, the best flips for a 10M cash stack among active members items:
+For example, the best flips for a 10M budget among active members items:
 
 ```bash
-curl 'http://localhost:8081/api/flips?cashStack=10000000&membership=members&minVolume5m=10&size=10'
+curl 'http://localhost:8081/api/flips?budget=10000000&membership=members&minVolume5m=10&size=10'
 ```
 
 Each result holds the `item` plus `buyPrice`, `sellPrice`, `tax`, `margin`,
 `roi`, `quantity`, `potentialProfit`, `volume5m`, `fillableQuantity`,
-`estimatedProfit`, `limitedBy` (`buyLimit`, `cashStack` or `volume`) and
-`lastTradeTime`. The page also reports how many matching flips are profitable
+`estimatedProfit`, `limitedBy` (`buyLimit`, `budget` or `volume`) and
+`lastTradeTime`. The quantity and profit fields are `null` for items with no
+known buy limit. The page also reports how many matching flips are profitable
 or losing, the `topFlip`, and when the most recent trade happened.
 
 Every item is priced and sorted in memory on each request, because the sort
-keys depend on the request's price basis and cash stack. Tax rules and the
+keys depend on the request's price basis and budget. Tax rules and the
 exempt-item list live in
 [`FlipCalculator.java`](backend/src/main/java/com/flipfinder/service/FlipCalculator.java),
 following the OSRS Wiki

@@ -29,7 +29,7 @@ export interface Item {
   updatedAt: string;
 }
 
-export type LimitedBy = 'buyLimit' | 'cashStack' | 'volume';
+export type LimitedBy = 'buyLimit' | 'budget' | 'volume';
 
 /** An item priced as a flip by GET /api/flips. */
 export interface Flip {
@@ -40,7 +40,7 @@ export interface Flip {
   /** Coins made per item after tax; negative when the flip loses money. */
   margin: number | null;
   roi: number | null;
-  /** One buy limit, reduced to what the cash stack affords. */
+  /** One buy limit, reduced to what the budget affords. */
   quantity: number | null;
   potentialProfit: number | null;
   volume5m: number | null;
@@ -91,7 +91,8 @@ export interface FlipQuery {
   membership: Membership;
   maxTradeAgeMinutes: number;
   minVolume5m: number;
-  cashStack: number | null;
+  /** Coins available to flip with. */
+  budget: number | null;
 }
 
 export function flipsUrl(query: FlipQuery): string {
@@ -119,6 +120,8 @@ export function wikiImageUrl(icon: string): string {
 export function wikiItemUrl(id: number): string {
   return `https://oldschool.runescape.wiki/w/Special:Lookup?type=item&id=${id}`;
 }
+
+export const BUYING_LIMITS_URL = 'https://oldschool.runescape.wiki/w/Grand_Exchange/Buying_limits';
 
 export function priceHistoryUrl(id: number): string {
   return `https://prices.runescape.wiki/osrs/item/${id}`;

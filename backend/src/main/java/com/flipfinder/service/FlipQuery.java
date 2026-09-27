@@ -10,8 +10,8 @@ public record FlipQuery(
         // Both sides must have traded within this many minutes; 0 means any time. Latest prices only.
         int maxTradeAgeMinutes,
         long minVolume5m,
-        // Coins available to spend, or null for no limit.
-        Long cashStack,
+        // Coins available to flip with, or null for no limit.
+        Long budget,
         Sort sort,
         Direction direction) {
 
@@ -19,7 +19,7 @@ public record FlipQuery(
         basis = basis == null ? PriceBasis.LATEST : basis;
         search = search == null ? "" : search.trim();
         membership = membership == null ? Membership.ALL : membership;
-        cashStack = cashStack == null || cashStack <= 0 ? null : cashStack;
+        budget = budget == null || budget <= 0 ? null : budget;
         sort = sort == null ? Sort.ESTIMATED_PROFIT : sort;
         if (direction == null) {
             direction = sort == Sort.NAME ? Direction.ASC : Direction.DESC;

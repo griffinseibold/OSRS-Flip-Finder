@@ -55,15 +55,23 @@ class FlipServiceTests {
                     item.highPriceVolume5m = 500L;
                     item.lowPriceVolume5m = 500L;
                 }),
-                item(3, "No trades", item -> item.highPrice = null)));
+                item(3, "No trades", item -> item.highPrice = null),
+                // A huge margin and volume, but no known buy limit: no estimate, so it ranks last.
+                item(4, "No limit", item -> {
+                    item.buyLimit = null;
+                    item.highPrice = 5_000L;
+                    item.highPriceVolume5m = 10_000L;
+                    item.lowPriceVolume5m = 10_000L;
+                })));
 
         FlipPageResponse page = service.find(new FlipQuery(null, null, null, 0, 0, null, null, null), 0, 50, NOW);
 
-        assertThat(page.items).extracting(flip -> flip.item.name).containsExactly("Liquid", "Thin", "No trades");
+        assertThat(page.items).extracting(flip -> flip.item.name)
+                .containsExactly("Liquid", "Thin", "No limit", "No trades");
         assertThat(page.topFlip.item.name).isEqualTo("Liquid");
-        assertThat(page.profitable).isEqualTo(2);
+        assertThat(page.profitable).isEqualTo(3);
         assertThat(page.losing).isZero();
-        assertThat(page.itemCount).isEqualTo(3);
+        assertThat(page.itemCount).isEqualTo(4);
         assertThat(page.pricesAsOf).isEqualTo(NOW - 60);
     }
 
@@ -83,7 +91,7 @@ class FlipServiceTests {
     }
 
     @Test
-    void filtersBySearchMembershipTradeAgeVolumeAndCash() {
+    void filtersBySearchMembershipTradeAgeVolumeAndBudget() {
         when(repository.findAll()).thenReturn(List.of(
                 item(1, "Gold leaf", item -> {}),
                 item(2, "Gold bar", item -> item.members = false),
@@ -100,6 +108,52 @@ class FlipServiceTests {
 
         assertThat(page.items).extracting(flip -> flip.item.name).containsExactly("Gold leaf");
         assertThat(page.searchMatches).isEqualTo(5);
+    }
+
+    @Test
+    void budgetHidesItemsItCannotAffordEvenWithoutABuyPrice() {
+        when(repository.findAll()).thenReturn(List.of(
+                item(1, "Nine million", item -> {
+                    item.lowPrice = 9_000_000L;
+                    item.highPrice = 9_500_000L;
+                    item.averageLowPrice5m = 9_000_000.0;
+                    item.averageHighPrice5m = 9_500_000.0;
+                }),
+                item(2, "Twelve million", item -> {
+                    item.lowPrice = 12_000_000L;
+                    item.highPrice = 12_500_000L;
+                    item.averageLowPrice5m = 12_000_000.0;
+                    item.averageHighPrice5m = 12_500_000.0;
+                }),
+                // No five-minute trades, so no buy price when priced from averages.
+                item(3, "Quiet twelve million", item -> {
+                    item.lowPrice = 12_000_000L;
+                    item.highPrice = 12_500_000L;
+                    item.averageLowPrice5m = null;
+                    item.averageHighPrice5m = null;
+                }),
+                // Never traded at the low price; the high price shows it is too dear.
+                item(4, "Only a high price", item -> {
+                    item.lowPrice = null;
+                    item.highPrice = 12_500_000L;
+                    item.averageLowPrice5m = null;
+                    item.averageHighPrice5m = null;
+                }),
+                item(5, "Never traded", item -> {
+                    item.lowPrice = null;
+                    item.highPrice = null;
+                    item.averageLowPrice5m = null;
+                    item.averageHighPrice5m = null;
+                })));
+
+        for (PriceBasis basis : PriceBasis.values()) {
+            FlipQuery query = new FlipQuery(basis, "", Membership.ALL, 0, 0, 10_000_000L, null, null);
+
+            assertThat(service.find(query, 0, 50, NOW).items)
+                    .extracting(flip -> flip.item.name)
+                    .as("priced from %s", basis)
+                    .containsExactly("Nine million");
+        }
     }
 
     @Test

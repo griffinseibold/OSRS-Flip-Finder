@@ -171,7 +171,7 @@ h3 {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(200px, 1.6fr) minmax(150px, 1fr) auto auto minmax(150px, 1fr) minmax(130px, 0.8fr);
+  grid-template-columns: minmax(170px, 1.2fr) minmax(170px, 1.2fr) auto auto minmax(150px, 1fr) minmax(130px, 0.8fr);
   align-items: start;
   gap: 14px 16px;
   padding: 16px;
@@ -613,8 +613,9 @@ h3 {
   margin: 10px 0 0;
 }
 
-.caution {
-  margin: 14px 0 0;
+.details-note {
+  max-width: 340px;
+  margin: 10px 0 0;
   color: var(--warning-ink);
 }
 
