@@ -4,7 +4,8 @@ On the [homelab], Argo CD deploys the Helm chart in
 [`chart/flipfinder`](../chart/flipfinder) from this repository's `master`
 branch. The homelab version keeps its price database on a persistent volume,
 and features that rely on the homelab are enabled by its `homelab` Spring
-profile.
+profile. So far that is receiving account data from the
+[RuneLite plugin](runelite-plugin.md).
 
 ## The chart
 

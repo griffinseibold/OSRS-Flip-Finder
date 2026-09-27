@@ -43,6 +43,23 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  runelite-plugin:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: runelite-plugin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+          cache-dependency-path: |
+            runelite-plugin/*.gradle
+            runelite-plugin/gradle/wrapper/gradle-wrapper.properties
+      - run: ./gradlew build --no-daemon
+
   lint-chart:
     runs-on: ubuntu-latest
     steps:
