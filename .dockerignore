@@ -8,3 +8,5 @@ chart
 README.md
 **/node_modules
 frontend/dist
+docs
+deploy
