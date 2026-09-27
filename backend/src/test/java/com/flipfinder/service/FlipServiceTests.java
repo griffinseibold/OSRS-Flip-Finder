@@ -116,6 +116,30 @@ class FlipServiceTests {
     }
 
     @Test
+    void leavesBondsOutOfFlips() {
+        // Tax-exempt with a 230K spread, but a bond bought on the Grand Exchange
+        // is untradeable until a 10% conversion fee is paid.
+        when(repository.findAll()).thenReturn(List.of(
+                item(13190, "Old school bond", item -> {
+                    item.lowPrice = 11_570_000L;
+                    item.highPrice = 11_800_000L;
+                }),
+                item(1, "Gold leaf", item -> {})));
+
+        FlipPageResponse page = service.find(new FlipQuery(null, null, null, 0, 0, 50_000_000L, null, null, null), 0, 50, NOW);
+
+        assertThat(page.items).extracting(flip -> flip.item.name).containsExactly("Gold leaf");
+        assertThat(page.topFlip.item.name).isEqualTo("Gold leaf");
+        assertThat(page.itemCount).isEqualTo(2);
+
+        // Searching for a bond finds nothing, rather than offering to clear filters that are not hiding it.
+        FlipPageResponse search = service.find(new FlipQuery(null, "bond", null, 0, 0, null, null, null, null), 0, 50, NOW);
+
+        assertThat(search.items).isEmpty();
+        assertThat(search.searchMatches).isZero();
+    }
+
+    @Test
     void budgetHidesItemsItCannotAffordEvenWithoutABuyPrice() {
         when(repository.findAll()).thenReturn(List.of(
                 item(1, "Nine million", item -> {

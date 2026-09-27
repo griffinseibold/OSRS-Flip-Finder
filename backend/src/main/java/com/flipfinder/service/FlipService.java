@@ -47,8 +47,12 @@ public class FlipService {
         List<ItemDto> items = repository.findAll();
         String search = query.search().toLowerCase(Locale.ROOT);
 
-        List<FlipDto> matches = items.stream()
+        List<ItemDto> searched = items.stream()
+                .filter(item -> FlipCalculator.isFlippable(item.id))
                 .filter(item -> item.name.toLowerCase(Locale.ROOT).contains(search))
+                .toList();
+
+        List<FlipDto> matches = searched.stream()
                 .map(item -> price(item, query, account.buyLimitWindows().get(item.id)))
                 .filter(flip -> matchesFilters(flip, query, nowSeconds))
                 .sorted(comparator(query.sort(), query.direction()))
@@ -73,9 +77,7 @@ public class FlipService {
                 .max(Comparator.comparingLong(flip -> flip.estimatedProfit))
                 .orElse(null);
         if (!search.isEmpty()) {
-            response.searchMatches = items.stream()
-                    .filter(item -> item.name.toLowerCase(Locale.ROOT).contains(search))
-                    .count();
+            response.searchMatches = (long) searched.size();
         }
         long latestTrade = items.stream()
                 .mapToLong(item -> Math.max(orZero(item.highPriceTime), orZero(item.lowPriceTime)))

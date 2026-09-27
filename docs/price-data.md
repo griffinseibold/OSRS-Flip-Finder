@@ -49,3 +49,13 @@ article sets out the tax: the seller pays 2% of the sale price, rounded down
 and capped at 5M per item, so sales under 50 gp pay nothing. A short list of
 items is exempt. The rules and exempt item ids are in
 [`FlipCalculator.java`](../backend/src/main/java/com/flipfinder/service/FlipCalculator.java).
+
+## Bonds
+
+The [Old school bond](https://oldschool.runescape.wiki/w/Old_school_bond)
+article explains why bonds are left out of flips even though they are
+tax-exempt. A bond sold on the Grand Exchange becomes untradeable, and
+converting it back costs 10% of a tradeable bond's Grand Exchange guide price.
+The article notes that buying a bond to resell straight away is usually not
+profitable. The real-time API has no guide price to charge the fee against, so
+Flip Finder does not price bonds as flips.

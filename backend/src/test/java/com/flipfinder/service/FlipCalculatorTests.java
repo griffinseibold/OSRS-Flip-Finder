@@ -56,6 +56,13 @@ class FlipCalculatorTests {
     }
 
     @Test
+    void bondsAreTaxExemptButNotFlippable() {
+        assertThat(FlipCalculator.isFlippable(13190)).isFalse();
+        assertThat(FlipCalculator.tax(13190, 11_800_000)).isZero();
+        assertThat(FlipCalculator.isFlippable(1)).isTrue();
+    }
+
+    @Test
     void buysLowAndSellsHighAfterTax() {
         ItemDto item = item();
         item.highPriceVolume5m = 100L;

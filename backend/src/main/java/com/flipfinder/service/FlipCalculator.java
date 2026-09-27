@@ -27,6 +27,13 @@ public final class FlipCalculator {
             2552, // Ring of dueling(8)
             233, 952, 1733, 1735, 1755, 1785, 2347, 5325, 5329, 5331, 5341, 5343, 8794); // Tools
 
+    // A bond bought on the Grand Exchange is untradeable, and converting it back
+    // costs 10% of its Grand Exchange guide price, per
+    // https://oldschool.runescape.wiki/w/Old_school_bond, which notes that buying
+    // one to resell straight away is usually not profitable. The price data has
+    // no guide price to charge the fee against, so bonds are left out of flips.
+    static final Set<Integer> UNFLIPPABLE_ITEM_IDS = Set.of(13190); // Old school bond
+
     // Buy limits reset every four hours, which is 48 five-minute windows.
     static final long WINDOWS_PER_BUY_LIMIT = 48;
 
@@ -38,6 +45,11 @@ public final class FlipCalculator {
             return 0;
         }
         return Math.min(sellPrice * TAX_PERCENT / 100, TAX_CAP);
+    }
+
+    /** Whether an item bought on the Grand Exchange can be sold again as it is. */
+    public static boolean isFlippable(int itemId) {
+        return !UNFLIPPABLE_ITEM_IDS.contains(itemId);
     }
 
     public static FlipDto calculate(ItemDto item, PriceBasis basis, Long budget) {
