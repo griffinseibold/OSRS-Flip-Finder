@@ -13,9 +13,11 @@ which runs on the homelab's language model.
 The chart follows the homelab's application contract:
 
 - Argo CD syncs the chart directly from this repository.
-- The namespace receives `gateway.homelab/access: public`.
-- An `HTTPRoute` for `flipfinder.localhost` attaches to
-  `gateway-system/homelab` on its `http` listener.
+- The namespace receives `gateway.homelab/access: public` and
+  `gateway.homelab/lan: "true"`.
+- An `HTTPRoute` for `flipfinder.localhost` and `flipfinder.lab.internal`
+  attaches to `gateway-system/homelab` on its `http` listener, for the homelab
+  host, and its `lan` listener, for the home network.
 - The service stays internal on port 80; the container listens on port 8080.
 - The `homelab` Spring profile stores SQLite on a 1 Gi `ReadWriteOnce`
   volume.
@@ -99,6 +101,13 @@ exports it. Once it syncs, the app is at:
 - Web app: <http://flipfinder.localhost:8080>
 - API: <http://flipfinder.localhost:8080/api/flips>
 - Swagger UI: <http://flipfinder.localhost:8080/swagger-ui.html>
+
+Phones and other devices on your Wi-Fi can use `https://flipfinder.lab.internal`
+once the homelab's
+[home network access](https://github.com/griffinseibold/Homelab/blob/main/docs/operations.md#home-network-access)
+is set up: add `flipfinder.lab.internal` to your router's DNS and trust the
+homelab's root certificate on the device. Flip Finder has no login, so anyone
+on your Wi-Fi can see your account's flips and use the chat.
 
 To check on it:
 
