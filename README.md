@@ -18,8 +18,9 @@ refresh every five minutes. Press Ctrl+C to stop it.
 
 ## Run it on the homelab
 
-The homelab version knows your account, so it can suggest flips you can
-actually make. You need:
+The homelab version knows your account and adds a chat with the homelab's
+local language model: ask what to flip and it answers for your coins,
+membership and buy limits. You need:
 
 - a running [homelab]
 - [RuneLite](https://runelite.net) with the
@@ -35,13 +36,14 @@ Then set up the plugin: in RuneLite, install **Flip Finder** from the Plugin
 Hub, turn on its **Send account data** setting, and open your bank once.
 [RuneLite plugin](docs/runelite-plugin.md) has the details.
 
-Open <http://flipfinder.localhost:8080>. Argo CD keeps it in step with this
-repository from then on, and its price database survives restarts.
+Open <http://flipfinder.localhost:8080>. It opens on the **Chat** tab; **All
+flips** has the full table. Argo CD keeps it in step with this repository from
+then on, and its price database survives restarts.
 
 ## Learn more
 
-- [Using Flip Finder](docs/using-flip-finder.md): what each column means and
-  how flips are ranked.
+- [Using Flip Finder](docs/using-flip-finder.md): what each column means, how
+  flips are ranked and what the homelab chat can answer.
 - [API](docs/api.md): the HTTP endpoints behind the web app.
 - [Development](docs/development.md): building, testing and running from
   source, with and without the homelab, and how releases work.

@@ -8,6 +8,8 @@ port as the app: <http://localhost:8081> when run with Docker, and
 | --- | --- | --- |
 | `GET` | `/api/flips` | One page of items priced, filtered and sorted as flips |
 | `GET` | `/api/items?page=0&size=25` | One page of Grand Exchange items by id |
+| `GET` | `/api/features` | Which homelab features this server has turned on |
+| `POST` | `/api/chat` | Ask the homelab's language model about flips (homelab only) |
 | `PUT` | `/api/runelite/accounts/{accountHash}` | Report an account; the [RuneLite plugin](runelite-plugin.md) calls this (homelab only) |
 | `GET` | `/api/runelite/accounts` | Every account the plugin has reported (homelab only) |
 | `GET` | `/api/runelite/accounts/{accountHash}` | One account, with its buy limits still in effect (homelab only) |
@@ -75,6 +77,39 @@ Grand Exchange `geOffers`, and its `buyLimits`: each item bought in a window
 that is still running, with its `limit`, how many were `bought`, how many
 `remaining` and when it `resetsAt`. `capturedAt` is when the plugin read the
 data.
+
+## Chat
+
+`GET /api/features` returns `{"runelite": true, "chat": true}` on the homelab
+and both `false` elsewhere; the web app shows the chat only when `chat` is
+on.
+
+`POST /api/chat` takes the conversation so far, oldest first and ending with
+the user's question, and optionally the account to answer for:
+
+```json
+{
+  "account": 1234567890,
+  "messages": [{ "role": "user", "content": "What could I make with 50M?" }]
+}
+```
+
+The server keeps no conversation: send the earlier messages each time. It
+answers with newline-delimited JSON (`application/x-ndjson`), one event per
+line, as the model works:
+
+| `type` | Fields | Meaning |
+| --- | --- | --- |
+| `tool` | `name`, `search`, `budget` | The model is looking flips up |
+| `flips` | `search`, `budget`, `sort`, `total`, `items` | The flips it looked up, shaped like `/api/flips` results |
+| `text` | `text` | The next piece of the answer |
+| `error` | `message` | The model could not be reached or failed |
+| `done` | | The answer is complete |
+
+```bash
+curl -N http://flipfinder.localhost:8080/api/chat -H 'Content-Type: application/json' \
+  -d '{"messages":[{"role":"user","content":"What should I flip right now?"}]}'
+```
 
 ## Items
 

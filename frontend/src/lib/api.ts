@@ -113,6 +113,124 @@ export async function fetchFlips(url: string, signal?: AbortSignal): Promise<Fli
   return (await response.json()) as FlipPage;
 }
 
+export interface Features {
+  /** Answers questions with the homelab's language model. */
+  chat: boolean;
+  /** Accepts account data from the RuneLite plugin. */
+  runelite: boolean;
+}
+
+export async function fetchFeatures(): Promise<Features> {
+  const response = await fetch('/api/features', { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    throw new Error(`GET /api/features returned HTTP ${response.status}`);
+  }
+  return (await response.json()) as Features;
+}
+
+/** An account as the RuneLite plugin last reported it. */
+export interface Account {
+  accountHash: number;
+  displayName: string | null;
+  members: boolean;
+  membershipDays: number;
+  ironman: boolean;
+  inventoryCoins: number;
+  bankCoins: number | null;
+  bankCoinsSeenAt: number | null;
+  /** Inventory and bank together; null until the bank has been seen. */
+  coins: number | null;
+  geOffers: {
+    slot: number;
+    itemId: number;
+    name: string | null;
+    state: string;
+    price: number;
+    totalQuantity: number;
+    quantityTraded: number;
+    spent: number;
+  }[];
+  buyLimits: {
+    itemId: number;
+    name: string | null;
+    limit: number | null;
+    bought: number;
+    remaining: number | null;
+    /** Unix seconds. */
+    resetsAt: number;
+  }[];
+  /** Unix seconds. */
+  capturedAt: number;
+}
+
+export async function fetchAccounts(): Promise<Account[]> {
+  const response = await fetch('/api/runelite/accounts', { headers: { Accept: 'application/json' } });
+  if (!response.ok) {
+    throw new Error(`GET /api/runelite/accounts returned HTTP ${response.status}`);
+  }
+  return (await response.json()) as Account[];
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+/** What /api/chat streams back, one JSON object per line. */
+export type ChatEvent =
+  | { type: 'tool'; name: string; search: string; budget: number | null }
+  | { type: 'flips'; search: string; budget: number | null; sort: SortKey; total: number; items: Flip[] }
+  | { type: 'text'; text: string }
+  | { type: 'error'; message: string }
+  | { type: 'done' };
+
+/** Asks the homelab's language model, passing each event to onEvent as it arrives. */
+export async function streamChat(
+  account: number | null,
+  messages: ChatMessage[],
+  onEvent: (event: ChatEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson' },
+    body: JSON.stringify({ account, messages }),
+    signal,
+  });
+  if (!response.ok || !response.body) {
+    throw new Error(`POST /api/chat returned HTTP ${response.status}`);
+  }
+  await readLines(response.body, (line) => onEvent(JSON.parse(line) as ChatEvent));
+}
+
+/** Calls onLine for each line of a streamed body, however the lines are split into chunks. */
+export async function readLines(body: ReadableStream<Uint8Array>, onLine: (line: string) => void): Promise<void> {
+  const reader = body.getReader();
+  // Streaming mode keeps a character split between chunks intact.
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) {
+      buffer += decoder.decode();
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    let newline = buffer.indexOf('\n');
+    while (newline >= 0) {
+      const line = buffer.slice(0, newline).trim();
+      buffer = buffer.slice(newline + 1);
+      if (line) {
+        onLine(line);
+      }
+      newline = buffer.indexOf('\n');
+    }
+  }
+  if (buffer.trim()) {
+    onLine(buffer.trim());
+  }
+}
+
 export function wikiImageUrl(icon: string): string {
   return `https://oldschool.runescape.wiki/images/${encodeURIComponent(icon.replaceAll(' ', '_'))}`;
 }

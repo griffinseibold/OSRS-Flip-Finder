@@ -4,8 +4,9 @@ On the [homelab], Argo CD deploys the Helm chart in
 [`chart/flipfinder`](../chart/flipfinder) from this repository's `master`
 branch. The homelab version keeps its price database on a persistent volume,
 and features that rely on the homelab are enabled by its `homelab` Spring
-profile. So far that is receiving account data from the
-[RuneLite plugin](runelite-plugin.md).
+profile: receiving account data from the
+[RuneLite plugin](runelite-plugin.md), and the chat, which runs on the
+homelab's language model.
 
 ## The chart
 
@@ -27,6 +28,17 @@ volume. Check the chart without deploying it:
 helm lint chart/flipfinder
 helm template flipfinder chart/flipfinder --namespace flipfinder
 ```
+
+## The language model
+
+The chat sends questions to the homelab's llama.cpp server through its
+OpenAI-compatible API, in-cluster at
+`http://llama-server.llm.svc.cluster.local/v1`. Set `FLIPFINDER_LLM_URL` to
+use another. The model answers by calling a `find_flips` tool, which runs the
+same query as `/api/flips` for the selected account, so it needs a model and
+server with tool calling; the homelab's Qwen3 does, with its thinking turned
+off to answer faster. The server's slots are shared with the homelab's other
+users, so an answer can wait while they are busy.
 
 ## Registering with Argo CD
 
