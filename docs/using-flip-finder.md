@@ -16,6 +16,27 @@ by what they could earn.
 4. **Place a buy offer at the "Buy at" price** and a sell offer at the "Sell
    at" price once it fills.
 
+## Asking the chat
+
+On the [homelab](homelab.md), Flip Finder opens on a chat with the homelab's
+local language model. Ask it things like:
+
+- What should I flip right now?
+- What could I make with 50M?
+- Is dragon bones a good flip?
+- Which of my buy limits reset soonest?
+
+Once the [RuneLite plugin](runelite-plugin.md) has reported your account, the
+panel beside the chat shows what it knows: your coins, Grand Exchange offers
+and the buy limits you have used. Answers use your coins as the budget unless
+you name one, stick to free-to-play items on a free-to-play account, and leave
+out what you have already bought this buy-limit window.
+
+The model looks flips up with the same ranking as the table, then summarizes
+the best few. **Based on N flips** under an answer opens the rows it read, so
+you can check its numbers. Language models can still misread or leave things
+out, so check the price before you commit a lot of coins.
+
 ## The columns
 
 - **Buy at / sell at:** the latest instant-sell (low) and instant-buy (high)

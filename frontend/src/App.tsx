@@ -1,13 +1,18 @@
 import { useState } from 'react';
 
+import { AccountPanel } from './components/AccountPanel';
+import { Chat } from './components/Chat';
 import { Filters } from './components/Filters';
 import { FlipTable } from './components/FlipTable';
 import { Summary } from './components/Summary';
 import { ThemeToggle } from './components/ThemeToggle';
+import { useAccounts } from './hooks/useAccounts';
 import { useDebouncedValue } from './hooks/useDebouncedValue';
+import { useFeatures } from './hooks/useFeatures';
 import { useFlips } from './hooks/useFlips';
 import { useNow } from './hooks/useNow';
 import { useTheme } from './hooks/useTheme';
+import { useView } from './hooks/useView';
 import { BUYING_LIMITS_URL, type SortKey } from './lib/api';
 import { formatAge, formatClock, formatGp, parseCoins } from './lib/format';
 import { useSettings } from './settings';
@@ -17,6 +22,13 @@ const PAGE_SIZE = 50;
 export function App() {
   const [settings, update] = useSettings();
   const [theme, toggleTheme] = useTheme();
+  // The homelab adds a chat and RuneLite account data; the standalone version has neither.
+  const features = useFeatures();
+  const [view, setView] = useView();
+  const showChat = features?.chat === true && view === 'chat';
+  const accounts = useAccounts(features?.runelite === true);
+  const [accountHash, setAccountHash] = useState<number | null>(null);
+  const account = accounts?.find((candidate) => candidate.accountHash === accountHash) ?? accounts?.[0] ?? null;
   const [search, setSearch] = useState('');
   // Typed fields only query the server once typing pauses.
   const debouncedSearch = useDebouncedValue(search.trim(), 250);
@@ -63,6 +75,16 @@ export function App() {
             <p>Old School RuneScape Grand Exchange flips ranked by profit after tax</p>
           </div>
         </div>
+        {features?.chat && (
+          <nav className="view-tabs" aria-label="View">
+            <button type="button" aria-current={view === 'chat' ? 'page' : undefined} onClick={() => setView('chat')}>
+              Chat
+            </button>
+            <button type="button" aria-current={view === 'flips' ? 'page' : undefined} onClick={() => setView('flips')}>
+              All flips
+            </button>
+          </nav>
+        )}
         <div className="status">
           {data?.pricesAsOf != null && (
             <span>
@@ -70,14 +92,27 @@ export function App() {
               <span className="muted">({formatAge(data.pricesAsOf, now)})</span>
             </span>
           )}
-          <button type="button" className="button" onClick={reload} disabled={loading}>
-            {loading ? 'Loading…' : 'Refresh'}
-          </button>
+          {!showChat && (
+            <button type="button" className="button" onClick={reload} disabled={loading}>
+              {loading ? 'Loading…' : 'Refresh'}
+            </button>
+          )}
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
       </header>
 
       <main>
+        {features === null ? (
+          <div className="state" aria-busy="true">
+            <p>Loading&hellip;</p>
+          </div>
+        ) : showChat ? (
+          <div className="homelab">
+            <AccountPanel accounts={accounts} selected={account} onSelect={setAccountHash} nowSeconds={now} />
+            <Chat key={account?.accountHash ?? 'none'} account={account} />
+          </div>
+        ) : (
+          <>
         {error && data && (
           <p className="banner banner-warning" role="alert">
             Couldn&rsquo;t load prices ({error.message}). Showing the last results; retrying shortly.
@@ -148,6 +183,8 @@ export function App() {
               nowSeconds={now}
             />
             <Method />
+          </>
+        )}
           </>
         )}
       </main>

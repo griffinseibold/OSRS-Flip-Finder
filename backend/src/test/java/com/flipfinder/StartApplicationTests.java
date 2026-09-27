@@ -7,11 +7,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -93,6 +95,15 @@ class StartApplicationTests {
 	void runeLiteEndpointsAreOffOutsideTheHomelab() throws Exception {
 		mockMvc.perform(get("/api/runelite/accounts"))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void homelabFeaturesAreOffOutsideTheHomelab() throws Exception {
+		mockMvc.perform(get("/api/features"))
+				.andExpect(jsonPath("$.chat").value(false))
+				.andExpect(jsonPath("$.runelite").value(false));
+		mockMvc.perform(post("/api/chat").contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().is4xxClientError());
 	}
 
 	@Test

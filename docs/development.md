@@ -9,7 +9,6 @@ How to build, test and run Flip Finder from source, with or without the
 | [`frontend/`](../frontend) | React web app (TypeScript, Vite) |
 | [`chart/flipfinder/`](../chart/flipfinder) | Helm chart for the homelab |
 | [`deploy/`](../deploy) | Argo CD Application that registers the chart |
-| [`runelite-plugin/`](../runelite-plugin) | [RuneLite plugin](runelite-plugin.md) that reports account data (Java 11, Gradle) |
 | [`Dockerfile`](../Dockerfile) | Builds the web app and API into one image |
 
 ## Backend
@@ -51,7 +50,8 @@ database, and a Spring profile chooses where it lives:
 - `homelab` stores it in the file at `FLIPFINDER_DB_PATH`, `/data/flipfinder.db`
   by default, on the homelab's persistent volume. It also turns on the
   endpoints that receive data from the RuneLite plugin
-  (`flipfinder.runelite.enabled`).
+  (`flipfinder.runelite.enabled`) and the chat, which calls the language
+  model at `FLIPFINDER_LLM_URL` (`flipfinder.llm.base-url`).
 
 Their settings are in
 [`application-local.properties`](../backend/src/main/resources/application-local.properties)
@@ -59,6 +59,17 @@ and
 [`application-homelab.properties`](../backend/src/main/resources/application-homelab.properties).
 Each import is written in one transaction, which keeps imports on disk to
 about half a second.
+
+To work on the chat, run the homelab profile against the homelab's language
+model through its Gateway:
+
+```bash
+SPRING_PROFILES_ACTIVE=homelab FLIPFINDER_DB_PATH=flipfinder.db \
+  FLIPFINDER_LLM_URL=http://llm.localhost:8080/v1 ./mvnw spring-boot:run
+```
+
+The tests replace the model with a stub server, so `./mvnw verify` needs no
+homelab.
 
 ## Frontend
 
@@ -85,6 +96,12 @@ In PowerShell, set it with `$env:FLIPFINDER_API_URL = "..."` first.
 
 `npm test` runs the unit tests and `npm run build` makes a type-checked
 production build.
+
+## RuneLite plugin
+
+The [RuneLite plugin](https://github.com/griffinseibold/flip-finder-plugin)
+that reports account data to the homelab version lives in its own repository,
+ready for the RuneLite Plugin Hub.
 
 ## Container
 
@@ -113,9 +130,9 @@ To try a build on the homelab itself, see
 
 ## CI and releases
 
-[CI](../.github/workflows/ci.yaml) runs the backend tests, frontend tests,
-RuneLite plugin build and Helm chart lint on every pull request and push.
-Pushes also publish the image to `ghcr.io/griffinseibold/osrs-flip-finder`:
+[CI](../.github/workflows/ci.yaml) runs the backend tests, frontend tests and
+Helm chart lint on every pull request and push. Pushes also publish the image
+to `ghcr.io/griffinseibold/osrs-flip-finder`:
 
 | Push | Image tags |
 | --- | --- |

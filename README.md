@@ -18,27 +18,39 @@ refresh every five minutes. Press Ctrl+C to stop it.
 
 ## Run it on the homelab
 
-You need a running [homelab]. Register Flip Finder with its Argo CD once:
+The homelab version knows your account and adds a chat with the homelab's
+local language model: ask what to flip and it answers for your coins,
+membership and buy limits. You need:
+
+- a running [homelab]
+- [RuneLite](https://runelite.net) with the
+  [Flip Finder plugin](https://github.com/griffinseibold/flip-finder-plugin)
+
+Register Flip Finder with the homelab's Argo CD once:
 
 ```bash
 kubectl --context kind-homelab-dev apply -f https://raw.githubusercontent.com/griffinseibold/Flip-Finder/master/deploy/argocd-application.yaml
 ```
 
-Open <http://flipfinder.localhost:8080>. Argo CD keeps it in step with this
-repository from then on. The homelab version also keeps its price database
-between restarts, and will gain features that rely on the homelab.
+Then set up the plugin: in RuneLite, install **Flip Finder** from the Plugin
+Hub, turn on its **Send account data** setting, and open your bank once.
+[RuneLite plugin](docs/runelite-plugin.md) has the details.
+
+Open <http://flipfinder.localhost:8080>. It opens on the **Chat** tab; **All
+flips** has the full table. Argo CD keeps it in step with this repository from
+then on, and its price database survives restarts.
 
 ## Learn more
 
-- [Using Flip Finder](docs/using-flip-finder.md): what each column means and
-  how flips are ranked.
+- [Using Flip Finder](docs/using-flip-finder.md): what each column means, how
+  flips are ranked and what the homelab chat can answer.
 - [API](docs/api.md): the HTTP endpoints behind the web app.
 - [Development](docs/development.md): building, testing and running from
   source, with and without the homelab, and how releases work.
 - [Homelab deployment](docs/homelab.md): the Helm chart, Argo CD and how
   updates reach the homelab.
-- [RuneLite plugin](docs/runelite-plugin.md): sends your membership, coins and
-  buy limits to the homelab version, so its flips fit your account.
+- [RuneLite plugin](docs/runelite-plugin.md): setting up the plugin that tells
+  the homelab version about your account.
 - [Price data](docs/price-data.md): where prices, trading volumes, buy limits
   and tax rules come from.
 
