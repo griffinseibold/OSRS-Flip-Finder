@@ -8,6 +8,7 @@ port as the app: <http://localhost:8081> when run with Docker, and
 | --- | --- | --- |
 | `GET` | `/api/flips` | One page of items priced, filtered and sorted as flips |
 | `GET` | `/api/items?page=0&size=25` | One page of Grand Exchange items by id |
+| `GET` | `/api/items/{id}/history` | How an item's latest trading compares with its history (homelab only) |
 | `GET` | `/api/features` | Which homelab features this server has turned on |
 | `POST` | `/api/chat` | Ask the homelab's language model about flips (homelab only) |
 | `PUT` | `/api/runelite/accounts/{accountHash}` | Report an account; the [RuneLite plugin](runelite-plugin.md) calls this (homelab only) |
@@ -80,9 +81,9 @@ data.
 
 ## Chat
 
-`GET /api/features` returns `{"runelite": true, "chat": true}` on the homelab
-and both `false` elsewhere; the web app shows the chat only when `chat` is
-on.
+`GET /api/features` returns `{"runelite": true, "history": true, "chat": true}`
+on the homelab and all `false` elsewhere; the web app shows the chat only when
+`chat` is on.
 
 `POST /api/chat` takes the conversation so far, oldest first and ending with
 the user's question, and optionally the account to answer for:
@@ -102,6 +103,7 @@ line, as the model works:
 | --- | --- | --- |
 | `tool` | `name`, `search`, `budget` | The model is looking flips up |
 | `flips` | `search`, `budget`, `sort`, `total`, `items` | The flips it looked up, shaped like `/api/flips` results |
+| `history` | `search`, `history` | The item history it looked up, shaped like `/api/items/{id}/history`, or `null` when no item matched |
 | `text` | `text` | The next piece of the answer |
 | `error` | `message` | The model could not be reached or failed |
 | `done` | | The answer is complete |
@@ -110,6 +112,31 @@ line, as the model works:
 curl -N http://flipfinder.localhost:8080/api/chat -H 'Content-Type: application/json' \
   -d '{"messages":[{"role":"user","content":"What should I flip right now?"}]}'
 ```
+
+## History
+
+On the homelab, `GET /api/items/{id}/history` compares an item's latest
+trading with the stored history, for example
+`/api/items/536/history` for dragon bones. Volumes count both sides: items
+bought at the high price plus items sold at the low price.
+
+- `fiveMinuteHours` and `hourlyDays`: how much history the comparison uses.
+- `volume`: `last5m`, the latest five-minute volume; `typical5m`, the median
+  five-minute volume; `typical5mThisHour`, the median at this hour of the day,
+  from hourly history; their `ratio`, preferring the hour of the day; the
+  `percentile` of five-minute periods that traded less; `lastHour` against
+  `typicalHour`; and a `verdict`: `unusually high` (3 times typical or more),
+  `above typical` (1.5 times), `typical` or `below typical` (half or less).
+- `price`: the `current` average price over the last hour, its percentage
+  change on a day, a week and 30 days ago, and the `low` and `high` of the
+  history.
+- `margin`: the `current` gap between the latest instant-buy and instant-sell
+  prices, the `typical` gap between average buy and sell prices, their `ratio`
+  and a `verdict`.
+- `notes`: the comparison in sentences, as the chat's language model reads it.
+
+Fields are `null` until there is enough history to compare: six hours of
+five-minute data, or three days for the hour of the day.
 
 ## Items
 

@@ -29,3 +29,26 @@ create table if not exists runelite_accounts (
   snapshot      text    not null,
   received_at   text    not null
 );
+
+-- Trading history from the RuneScape Wiki (homelab only): each item's average
+-- prices and volumes per five-minute or hourly bucket, kept for a few days or
+-- weeks so the chat can tell whether today's trading is typical.
+create table if not exists price_history (
+  step            integer not null,  -- bucket length in seconds: 300 or 3600
+  item_id         integer not null,
+  timestamp       integer not null,  -- bucket start, in epoch seconds
+  avg_high_price  integer,
+  high_volume     integer not null,
+  avg_low_price   integer,
+  low_volume      integer not null,
+  primary key (step, item_id, timestamp)
+) without rowid;
+
+-- Every bucket imported. An item missing from an imported bucket did not trade
+-- in it, which matters as much as the buckets it did trade in.
+create table if not exists price_history_buckets (
+  step       integer not null,
+  timestamp  integer not null,
+  items      integer not null,
+  primary key (step, timestamp)
+) without rowid;

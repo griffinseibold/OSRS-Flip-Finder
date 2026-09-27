@@ -1,14 +1,7 @@
 package com.flipfinder.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -19,7 +12,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionOperations;
@@ -31,29 +23,19 @@ public class BulkIngestService {
 
     private final JdbcTemplate jdbc;
     private final TransactionOperations transactions;
-    private final String baseUrl;
-    private final String userAgent;
-    private final ObjectMapper mapper = new ObjectMapper();
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(20))
-            .build();
+    private final WikiPriceClient wiki;
 
-    public BulkIngestService(
-            JdbcTemplate jdbc,
-            TransactionOperations transactions,
-            @Value("${flipfinder.ingest.base-url}") String baseUrl,
-            @Value("${flipfinder.ingest.user-agent}") String userAgent) {
+    public BulkIngestService(JdbcTemplate jdbc, TransactionOperations transactions, WikiPriceClient wiki) {
         this.jdbc = jdbc;
         this.transactions = transactions;
-        this.baseUrl = baseUrl.replaceFirst("/+$", "");
-        this.userAgent = userAgent;
+        this.wiki = wiki;
     }
 
     public void fetchAndProcess() {
         try {
-            JsonNode mapping = fetchJson("/mapping");
-            JsonNode latest = fetchJson("/latest");
-            JsonNode fiveMinute = fetchJson("/5m");
+            JsonNode mapping = wiki.get("/mapping");
+            JsonNode latest = wiki.get("/latest");
+            JsonNode fiveMinute = wiki.get("/5m");
 
             long started = System.nanoTime();
             IngestResult result = processResponses(mapping, latest, fiveMinute);
@@ -66,24 +48,6 @@ public class BulkIngestService {
             logger.warn("RuneScape Wiki price ingest interrupted", e);
         } catch (Exception e) {
             logger.error("RuneScape Wiki price ingest failed", e);
-        }
-    }
-
-    private JsonNode fetchJson(String path) throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + path))
-                .header("Accept", "application/json")
-                .header("User-Agent", userAgent)
-                .timeout(Duration.ofMinutes(2))
-                .GET()
-                .build();
-        HttpResponse<InputStream> response = http.send(request, HttpResponse.BodyHandlers.ofInputStream());
-
-        try (InputStream body = response.body()) {
-            if (response.statusCode() != 200) {
-                throw new IllegalStateException(path + " returned HTTP " + response.statusCode());
-            }
-            return mapper.readTree(body);
         }
     }
 

@@ -74,7 +74,7 @@ class BulkIngestServiceTests {
     void importsAllThreeBulkResponsesAndFlushesPartialBatches() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         BulkIngestService service = new BulkIngestService(
-                jdbc, TransactionOperations.withoutTransaction(), BASE_URL, "test-agent");
+                jdbc, TransactionOperations.withoutTransaction(), new WikiPriceClient(BASE_URL, "test-agent"));
 
         BulkIngestService.IngestResult result = service.processResponses(mapping, latest, fiveMinute);
 
@@ -100,7 +100,7 @@ class BulkIngestServiceTests {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
         BulkIngestService service = new BulkIngestService(
-                jdbc, new TransactionTemplate(transactionManager), BASE_URL, "test-agent");
+                jdbc, new TransactionTemplate(transactionManager), new WikiPriceClient(BASE_URL, "test-agent"));
 
         service.processResponses(mapping, latest, fiveMinute);
 

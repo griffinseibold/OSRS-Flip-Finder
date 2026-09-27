@@ -17,13 +17,14 @@ public class FeaturesController {
 
 	public FeaturesController(
 			@Value("${flipfinder.runelite.enabled:false}") boolean runelite,
+			@Value("${flipfinder.history.enabled:false}") boolean history,
 			@Value("${flipfinder.llm.base-url:}") String llmBaseUrl) {
-		this.features = Map.of("runelite", runelite, "chat", !llmBaseUrl.isBlank());
+		this.features = Map.of("runelite", runelite, "history", history, "chat", !llmBaseUrl.isBlank());
 	}
 
 	@GetMapping("/api/features")
-	@Operation(summary = "List features", description = "runelite: accepts RuneLite plugin data; chat: can answer "
-			+ "questions with the homelab's language model.")
+	@Operation(summary = "List features", description = "runelite: accepts RuneLite plugin data; history: keeps "
+			+ "trading history; chat: can answer questions with the homelab's language model.")
 	public Map<String, Boolean> features() {
 		return features;
 	}

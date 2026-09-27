@@ -20,7 +20,8 @@ refresh every five minutes. Press Ctrl+C to stop it.
 
 The homelab version knows your account and adds a chat with the homelab's
 local language model: ask what to flip and it answers for your coins,
-membership and buy limits. You need:
+membership and buy limits, and whether an item is trading more than usual.
+You need:
 
 - a running [homelab]
 - [RuneLite](https://runelite.net) with the

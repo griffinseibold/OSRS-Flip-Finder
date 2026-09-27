@@ -109,7 +109,7 @@ export function App() {
         ) : showChat ? (
           <div className="homelab">
             <AccountPanel accounts={accounts} selected={account} onSelect={setAccountHash} nowSeconds={now} />
-            <Chat key={account?.accountHash ?? 'none'} account={account} />
+            <Chat key={account?.accountHash ?? 'none'} account={account} history={features.history} />
           </div>
         ) : (
           <>

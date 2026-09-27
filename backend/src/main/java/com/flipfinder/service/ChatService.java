@@ -7,6 +7,7 @@ import com.flipfinder.dto.AccountDto;
 import com.flipfinder.dto.ChatRequest;
 import com.flipfinder.dto.FlipDto;
 import com.flipfinder.dto.FlipPageResponse;
+import com.flipfinder.dto.ItemHistoryDto;
 import com.flipfinder.service.FlipQuery.Membership;
 import com.flipfinder.service.FlipQuery.PriceBasis;
 import com.flipfinder.service.FlipQuery.Sort;
@@ -31,7 +32,8 @@ import org.springframework.stereotype.Service;
 /**
  * Answers a player's questions with the homelab's language model. The model
  * looks up flips through a find_flips tool backed by {@link FlipService}, so
- * its numbers come from the same prices as the rest of Flip Finder.
+ * its numbers come from the same prices as the rest of Flip Finder, and, when
+ * history is kept, checks whether trading is typical with an item_history tool.
  */
 @Service
 @ConditionalOnProperty(name = "flipfinder.llm.base-url")
@@ -49,7 +51,7 @@ public class ChatService {
     private static final int ACTIVE_WITHIN_MINUTES = 60;
     private static final long ACTIVE_MIN_VOLUME_5M = 10;
 
-    static final List<Map<String, Object>> TOOLS = List.of(Map.of(
+    static final Map<String, Object> FIND_FLIPS = Map.of(
             "type", "function",
             "function", Map.of(
                     "name", "find_flips",
@@ -69,18 +71,36 @@ public class ChatService {
                                     "membership", Map.of("type", "string",
                                             "enum", List.of("all", "f2p", "members"),
                                             "description", "Only free-to-play or members items")),
-                            "required", List.of()))));
+                            "required", List.of())));
+
+    static final Map<String, Object> ITEM_HISTORY = Map.of(
+            "type", "function",
+            "function", Map.of(
+                    "name", "item_history",
+                    "description", "Compare an item's latest trading with its recent history: whether its "
+                            + "five-minute volume, price and margin are typical or unusual, and how its price "
+                            + "has moved over the last day, week and month.",
+                    "parameters", Map.of(
+                            "type", "object",
+                            "properties", Map.of(
+                                    "item", Map.of("type", "string", "description", "The item's name")),
+                            "required", List.of("item"))));
 
     private final LlmClient llm;
     private final FlipService flips;
     private final AccountService accounts;
+    private final Optional<PriceHistoryService> history;
     private final ObjectMapper mapper;
+    private final List<Map<String, Object>> tools;
 
-    public ChatService(LlmClient llm, FlipService flips, AccountService accounts, ObjectMapper mapper) {
+    public ChatService(LlmClient llm, FlipService flips, AccountService accounts,
+            Optional<PriceHistoryService> history, ObjectMapper mapper) {
         this.llm = llm;
         this.flips = flips;
         this.accounts = accounts;
+        this.history = history;
         this.mapper = mapper;
+        this.tools = history.isPresent() ? List.of(FIND_FLIPS, ITEM_HISTORY) : List.of(FIND_FLIPS);
     }
 
     /** Answers the last message, emitting text, tool activity and the flips looked up as they happen. */
@@ -91,7 +111,7 @@ public class ChatService {
                 : accounts.find(request.account, now);
 
         List<Map<String, Object>> messages = new ArrayList<>();
-        messages.add(LlmClient.message("system", systemPrompt(account.orElse(null), now)));
+        messages.add(LlmClient.message("system", systemPrompt(account.orElse(null), now, history.isPresent())));
         List<ChatRequest.Message> history = request.messages.stream()
                 .filter(message -> ("user".equals(message.role) || "assistant".equals(message.role))
                         && message.content != null && !message.content.isBlank())
@@ -102,8 +122,8 @@ public class ChatService {
 
         try {
             for (int round = 0; ; round++) {
-                List<Map<String, Object>> tools = round < MAX_TOOL_ROUNDS ? TOOLS : List.of();
-                Reply reply = llm.complete(messages, tools, text -> emit.accept(event("text", "text", text)));
+                List<Map<String, Object>> offered = round < MAX_TOOL_ROUNDS ? tools : List.of();
+                Reply reply = llm.complete(messages, offered, text -> emit.accept(event("text", "text", text)));
                 List<ToolCall> calls = reply.toolCalls().stream().filter(call -> call.name() != null).toList();
                 if (calls.isEmpty()) {
                     break;
@@ -124,15 +144,22 @@ public class ChatService {
     }
 
     private String runTool(ToolCall call, AccountDto account, Consumer<Map<String, Object>> emit) {
-        if (!"find_flips".equals(call.name())) {
-            return json(Map.of("error", "Unknown tool " + call.name()));
-        }
         JsonNode arguments;
         try {
             arguments = mapper.readTree(call.arguments());
         } catch (JsonProcessingException e) {
             return json(Map.of("error", "The arguments were not valid JSON"));
         }
+        if ("find_flips".equals(call.name())) {
+            return findFlips(arguments, account, emit);
+        }
+        if ("item_history".equals(call.name()) && history.isPresent()) {
+            return itemHistory(arguments, history.get(), emit);
+        }
+        return json(Map.of("error", "Unknown tool " + call.name()));
+    }
+
+    private String findFlips(JsonNode arguments, AccountDto account, Consumer<Map<String, Object>> emit) {
         String search = arguments.path("search").asText("").trim();
         Long budget = arguments.path("budget").asLong(0) > 0 ? arguments.get("budget").asLong() : null;
         Sort sort = switch (arguments.path("sort").asText("")) {
@@ -146,19 +173,20 @@ public class ChatService {
             case "members" -> Membership.MEMBERS;
             default -> Membership.ALL;
         };
-        Map<String, Object> started = new LinkedHashMap<>();
-        started.put("type", "tool");
-        started.put("name", call.name());
-        started.put("search", search);
-        started.put("budget", budget);
-        emit.accept(started);
+        emit.accept(toolStarted("find_flips", search, budget));
 
         // A named item is wanted however quietly it trades.
         boolean activeOnly = search.isEmpty();
         FlipQuery query = new FlipQuery(PriceBasis.LATEST, search, membership,
                 activeOnly ? ACTIVE_WITHIN_MINUTES : 0, activeOnly ? ACTIVE_MIN_VOLUME_5M : 0,
                 budget, sort, null, account == null ? null : account.accountHash);
-        FlipPageResponse page = flips.find(query, 0, FLIPS_PER_LOOKUP);
+        // A search looks further than the top few, so an item named exactly can be found among
+        // many matches; it is then the only one shown, since the player asked about it.
+        FlipPageResponse page = flips.find(query, 0, search.isEmpty() ? FLIPS_PER_LOOKUP : FlipService.MAX_PAGE_SIZE);
+        List<FlipDto> exact = page.items.stream().filter(flip -> flip.item.name.equalsIgnoreCase(search)).toList();
+        List<FlipDto> shown = exact.isEmpty()
+                ? page.items.subList(0, Math.min(FLIPS_PER_LOOKUP, page.items.size()))
+                : exact;
 
         Map<String, Object> lookup = new LinkedHashMap<>();
         lookup.put("type", "flips");
@@ -166,47 +194,130 @@ public class ChatService {
         lookup.put("budget", page.budget);
         lookup.put("sort", sort.value());
         lookup.put("total", page.total);
-        lookup.put("items", page.items);
+        lookup.put("items", shown);
         emit.accept(lookup);
 
         long now = Instant.now().getEpochSecond();
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("budget", page.budget);
+        result.put("budget", coins(page.budget));
         result.put("matchingItems", page.total);
         List<Map<String, Object>> flips = new ArrayList<>();
-        for (FlipDto flip : page.items) {
-            flips.add(describe(flips.size() + 1, flip, now));
+        for (FlipDto flip : shown) {
+            ItemHistoryDto summary = history.map(service -> service.summarize(flip.item, now)).orElse(null);
+            flips.add(describe(flips.size() + 1, flip, summary, now));
         }
         result.put("flips", flips);
         return json(result);
     }
 
-    /** A flip as the model sees it: plain numbers under self-explanatory names. */
-    private static Map<String, Object> describe(int rank, FlipDto flip, long now) {
+    private String itemHistory(JsonNode arguments, PriceHistoryService history, Consumer<Map<String, Object>> emit) {
+        String name = arguments.path("item").asText("").trim();
+        emit.accept(toolStarted("item_history", name, null));
+        Optional<PriceHistoryService.Match> match = history.find(name);
+
+        Map<String, Object> lookup = new LinkedHashMap<>();
+        lookup.put("type", "history");
+        lookup.put("search", name);
+        if (match.isEmpty()) {
+            lookup.put("history", null);
+            emit.accept(lookup);
+            return json(Map.of("error", "No item is called \"" + name + "\""));
+        }
+        ItemHistoryDto summary = history.summarize(match.get().item(), Instant.now().getEpochSecond());
+        lookup.put("history", summary);
+        emit.accept(lookup);
+
+        // The notes already hold the comparison in words, so the model need not work anything out.
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("item", summary.name);
+        if (!match.get().others().isEmpty()) {
+            result.put("otherItemsMatchingTheName", match.get().others());
+        }
+        result.put("volume", summary.volume.verdict);
+        result.put("margin", summary.margin.verdict);
+        result.put("notes", summary.notes);
+        return json(result);
+    }
+
+    /**
+     * The flip as a finished line of the answer. Copying it is more reliable
+     * than composing it: a small model left alone drops digits from long
+     * prices and attaches warnings to the wrong flips.
+     */
+    static String line(FlipDto flip, String warning) {
+        StringBuilder line = new StringBuilder(String.format(Locale.ROOT, "**%s**: buy %s, sell %s, %s each",
+                flip.item.name, coins(flip.buyPrice), coins(flip.sellPrice), coins(flip.margin)));
+        if (flip.estimatedProfit == null) {
+            line.append(", buy limit unknown");
+        } else if (flip.estimatedProfit == 0 && flip.limitedBy == FlipDto.LimitedBy.VOLUME) {
+            line.append(", but one side has not traded in the latest five minutes");
+        } else {
+            line.append(", about ").append(compact(flip.estimatedProfit)).append(" profit");
+            if (flip.limitedBy != null) {
+                line.append(switch (flip.limitedBy) {
+                    case BUY_LIMIT -> ", capped by the buy limit";
+                    case BUDGET -> ", capped by the budget";
+                    case VOLUME -> ", capped by trading volume";
+                });
+            }
+        }
+        if (warning != null) {
+            line.append(" (").append(warning).append(')');
+        }
+        return line.toString();
+    }
+
+    private static String compact(long coins) {
+        long size = Math.abs(coins);
+        if (size >= 1_000_000) {
+            return String.format(Locale.ROOT, "%.1fM", coins / 1_000_000.0);
+        }
+        return size >= 10_000 ? String.format(Locale.ROOT, "%.0fK", coins / 1_000.0) : coins(coins);
+    }
+
+    private static Map<String, Object> toolStarted(String name, String search, Long budget) {
+        Map<String, Object> started = new LinkedHashMap<>();
+        started.put("type", "tool");
+        started.put("name", name);
+        started.put("search", search);
+        started.put("budget", budget);
+        return started;
+    }
+
+    /**
+     * A flip as the model sees it, under self-explanatory names. Coins arrive
+     * already written out, because small models drop digits when they reformat
+     * a long raw number such as 12152033.
+     */
+    private static Map<String, Object> describe(int rank, FlipDto flip, ItemHistoryDto history, long now) {
         Map<String, Object> row = new LinkedHashMap<>();
         // Small models reorder a list unless each row says where it belongs.
         row.put("rank", rank);
         row.put("item", flip.item.name);
+        row.put("line", line(flip, history == null ? null : TradingHistory.warning(history)));
         row.put("members", flip.item.members);
-        row.put("buyAt", flip.buyPrice);
-        row.put("sellAt", flip.sellPrice);
-        row.put("tax", flip.tax);
-        row.put("marginPerItem", flip.margin);
+        row.put("buyAt", coins(flip.buyPrice));
+        row.put("sellAt", coins(flip.sellPrice));
+        row.put("tax", coins(flip.tax));
+        row.put("marginPerItem", coins(flip.margin));
         row.put("roiPercent", flip.roi == null ? null : Math.round(flip.roi * 1000) / 10.0);
         row.put("buyLimit", flip.item.buyLimit);
         row.put("alreadyBought", flip.alreadyBought);
         row.put("limitResetsInMinutes", flip.limitResetsAt == null ? null : Math.max((flip.limitResetsAt - now) / 60, 0));
         row.put("quantity", flip.quantity);
         row.put("fillableIn4h", flip.fillableQuantity);
-        row.put("estimatedProfit4h", flip.estimatedProfit);
+        row.put("estimatedProfit4h", coins(flip.estimatedProfit));
         row.put("cappedBy", flip.limitedBy == null ? null : flip.limitedBy.value());
         row.put("traded5mAtLowPrice", flip.item.lowPriceVolume5m);
         row.put("traded5mAtHighPrice", flip.item.highPriceVolume5m);
         row.put("lastTradeMinutesAgo", flip.lastTradeTime == null ? null : (now - flip.lastTradeTime) / 60);
+        if (history != null) {
+            row.put("volumeVsTypical", history.volume.ratio);
+        }
         return row;
     }
 
-    static String systemPrompt(AccountDto account, long now) {
+    static String systemPrompt(AccountDto account, long now, boolean history) {
         StringBuilder prompt = new StringBuilder("""
                 You are Flip Finder, an assistant that helps an Old School RuneScape player choose Grand \
                 Exchange flips: items to buy and resell for a profit.
@@ -223,16 +334,28 @@ public class ChatService {
                 players compete for the same trades.
 
                 Rules:
-                - Get prices, margins and flip ideas only from the find_flips tool. Never make up items or numbers.
-                - find_flips ranks the best flips first. List them in rank order, and suggest the top three \
-                to five unless the player asks for more.
-                - Give each flip one numbered line, like "1. **Lassar teleport**: buy 1,151, sell 1,320, \
-                143 gp each, about 796K profit." Mention what caps it, its buy limit, the budget or slow \
-                trading, only when that matters.
+                - Get prices, margins and flip ideas only from the tools. Never make up items or numbers.
+                - find_flips ranks the best flips first. Suggest the top three to five in rank order \
+                unless the player asks for more. When the player asks about one item, show only that item.
+                - Each flip has a line. Show a flip by copying its line exactly after its number, like \
+                "1. " followed by the line. Never rewrite the numbers in a line.
                 - Answer briefly, in plain language, and write coins like 1.2M or 45,000 gp.
                 - If an item trades slowly or last traded long ago, warn that its price may be unreliable.
 
                 """);
+        if (history) {
+            prompt.append("""
+                    Trading history:
+                    - Use item_history when the player asks whether an item's volume, price or margin is \
+                    normal, how its price has moved, or whether a flip is safe. Pass on its notes in plain \
+                    words without recalculating them.
+                    - When the player asks whether an item is a good flip, look it up with both find_flips \
+                    and item_history: give its line, then say whether its trading looks normal.
+                    - A flip line ending in brackets, like "(volume 4x usual, may not last)", is trading far \
+                    from normal. Keep the brackets when you copy it.
+
+                    """);
+        }
         if (account == null) {
             prompt.append("""
                     The player has not connected the Flip Finder RuneLite plugin, so their coins, membership \
@@ -267,7 +390,7 @@ public class ChatService {
                 prompt.append("  - ").append(offer.state.toLowerCase(Locale.ROOT).replace('_', ' ')).append(' ')
                         .append(offer.name == null ? "item " + offer.itemId : offer.name).append(": ")
                         .append(String.format("%,d of %,d", offer.quantityTraded, offer.totalQuantity))
-                        .append(" at ").append(coins(offer.price)).append(" each\n");
+                        .append(" at ").append(coins((long) offer.price)).append(" each\n");
             }
         }
         if (!account.buyLimits.isEmpty()) {
@@ -284,8 +407,8 @@ public class ChatService {
         return prompt.toString();
     }
 
-    private static String coins(long amount) {
-        return String.format("%,d gp", amount);
+    private static String coins(Long amount) {
+        return amount == null ? null : String.format(Locale.ROOT, "%,d gp", amount);
     }
 
     private static String ago(long timestamp, long now) {
