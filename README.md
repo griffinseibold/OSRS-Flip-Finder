@@ -24,7 +24,8 @@ membership and buy limits. You need:
 
 - a running [homelab]
 - [RuneLite](https://runelite.net) with the
-  [Flip Finder plugin](https://github.com/griffinseibold/flip-finder-plugin)
+  [Flip Finder Agent](https://github.com/griffinseibold/flip-finder-plugin)
+  plugin
 
 Register Flip Finder with the homelab's Argo CD once:
 
@@ -32,8 +33,9 @@ Register Flip Finder with the homelab's Argo CD once:
 kubectl --context kind-homelab-dev apply -f https://raw.githubusercontent.com/griffinseibold/Flip-Finder/master/deploy/argocd-application.yaml
 ```
 
-Then set up the plugin: in RuneLite, install **Flip Finder** from the Plugin
-Hub, turn on its **Send account data** setting, and open your bank once.
+Then set up the plugin: in RuneLite, install **Flip Finder Agent** from the
+Plugin Hub, turn on its **Send account data** setting, and open your bank
+once.
 [RuneLite plugin](docs/runelite-plugin.md) has the details.
 
 Open <http://flipfinder.localhost:8080>. It opens on the **Chat** tab; **All

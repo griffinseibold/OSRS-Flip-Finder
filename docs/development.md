@@ -99,9 +99,10 @@ production build.
 
 ## RuneLite plugin
 
-The [RuneLite plugin](https://github.com/griffinseibold/flip-finder-plugin)
-that reports account data to the homelab version lives in its own repository,
-ready for the RuneLite Plugin Hub.
+[Flip Finder Agent](https://github.com/griffinseibold/flip-finder-plugin), the
+RuneLite plugin that reports account data to the homelab version, lives in its
+own repository and is
+[submitted to the Plugin Hub](https://github.com/runelite/plugin-hub/pull/17204).
 
 ## Container
 

@@ -20,10 +20,10 @@ export function AccountPanel({ accounts, selected, onSelect, nowSeconds }: Accou
       <aside className="account-panel">
         <h2>Connect RuneLite</h2>
         <p>
-          Answers can use your coins, membership and buy limits once the Flip Finder RuneLite plugin reports them:
+          Answers can use your coins, membership and buy limits once the Flip Finder Agent plugin for RuneLite reports them:
         </p>
         <ol>
-          <li>Install <strong>Flip Finder</strong> from RuneLite&rsquo;s Plugin Hub.</li>
+          <li>Install <strong>Flip Finder Agent</strong> from RuneLite&rsquo;s Plugin Hub.</li>
           <li>Turn on its <strong>Send account data</strong> setting.</li>
           <li>Log in and open your bank.</li>
         </ol>
