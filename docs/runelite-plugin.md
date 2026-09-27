@@ -1,7 +1,8 @@
 # RuneLite plugin
 
 The homelab version of Flip Finder learns about your account from the
-[Flip Finder RuneLite plugin](https://github.com/griffinseibold/flip-finder-plugin):
+[Flip Finder Agent](https://github.com/griffinseibold/flip-finder-plugin)
+RuneLite plugin:
 whether you are a member, how many coins you have, your Grand Exchange offers,
 and how much of each item's four-hour buy limit you have used. With that, it
 suggests flips you can actually make instead of asking for a budget and
@@ -13,13 +14,15 @@ You need [RuneLite](https://runelite.net) and Flip Finder running on the
 [homelab](homelab.md).
 
 1. In RuneLite, open **Configuration**, then **Plugin Hub**, search for
-   **Flip Finder** and select **Install**.
+   **Flip Finder Agent** and select **Install**.
 2. Open the plugin's settings. The default **Server URL**,
    `http://flipfinder.localhost:8080`, is the homelab.
 3. Turn on **Send account data** and accept RuneLite's warning.
 4. Log in and open your bank once, so the plugin can see the coins in it.
 
-The plugin is not on the Plugin Hub yet. Until it is, its
+Flip Finder Agent is waiting for review before it appears on the Plugin Hub
+([runelite/plugin-hub#17204](https://github.com/runelite/plugin-hub/pull/17204)).
+Until then, its
 [README](https://github.com/griffinseibold/flip-finder-plugin#development)
 explains how to run it from source, and what it can and cannot see.
 
