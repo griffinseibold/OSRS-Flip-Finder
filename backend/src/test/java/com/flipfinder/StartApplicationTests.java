@@ -98,10 +98,10 @@ class StartApplicationTests {
 	}
 
 	@Test
-	void homelabFeaturesAreOffOutsideTheHomelab() throws Exception {
+	void onlyHistoryIsOnOutsideTheHomelab() throws Exception {
 		mockMvc.perform(get("/api/features"))
 				.andExpect(jsonPath("$.chat").value(false))
-				.andExpect(jsonPath("$.history").value(false))
+				.andExpect(jsonPath("$.history").value(true))
 				.andExpect(jsonPath("$.runelite").value(false));
 		mockMvc.perform(post("/api/chat").contentType(MediaType.APPLICATION_JSON).content("{}"))
 				.andExpect(status().is4xxClientError());

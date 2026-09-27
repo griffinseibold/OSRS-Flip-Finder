@@ -8,7 +8,7 @@ port as the app: <http://localhost:8081> when run with Docker, and
 | --- | --- | --- |
 | `GET` | `/api/flips` | One page of items priced, filtered and sorted as flips |
 | `GET` | `/api/items?page=0&size=25` | One page of Grand Exchange items by id |
-| `GET` | `/api/items/{id}/history` | How an item's latest trading compares with its history (homelab only) |
+| `GET` | `/api/items/{id}/history` | How an item's latest trading compares with its history |
 | `GET` | `/api/features` | Which homelab features this server has turned on |
 | `POST` | `/api/chat` | Ask the homelab's language model about flips (homelab only) |
 | `PUT` | `/api/runelite/accounts/{accountHash}` | Report an account; the [RuneLite plugin](runelite-plugin.md) calls this (homelab only) |
@@ -45,8 +45,10 @@ curl 'http://localhost:8081/api/flips?budget=10000000&membership=members&minVolu
 
 Each result holds the `item` plus `buyPrice`, `sellPrice`, `tax`, `margin`,
 `roi`, `quantity`, `potentialProfit`, `volume5m`, `fillableQuantity`,
-`estimatedProfit`, `limitedBy` (`buyLimit`, `budget` or `volume`) and
-`lastTradeTime`. The quantity and profit fields are `null` for items with no
+`estimatedProfit`, `limitedBy` (`buyLimit`, `budget` or `volume`),
+`lastTradeTime`, and from [trading history](#history) `volumeVsUsual` and a
+`warning` such as `volume 6.2x usual, may not last` when the volume or margin
+is at least three times usual. The quantity and profit fields are `null` for items with no
 known buy limit. The page also reports how many matching flips are profitable
 or losing, the `topFlip`, the `budget` it applied, and when the most recent
 trade happened.
@@ -82,8 +84,8 @@ data.
 ## Chat
 
 `GET /api/features` returns `{"runelite": true, "history": true, "chat": true}`
-on the homelab and all `false` elsewhere; the web app shows the chat only when
-`chat` is on.
+on the homelab; the standalone version has only `history`. The web app shows
+the chat only when `chat` is on.
 
 `POST /api/chat` takes the conversation so far, oldest first and ending with
 the user's question, and optionally the account to answer for:
@@ -115,15 +117,17 @@ curl -N http://flipfinder.localhost:8080/api/chat -H 'Content-Type: application/
 
 ## History
 
-On the homelab, `GET /api/items/{id}/history` compares an item's latest
-trading with the stored history, for example
+`GET /api/items/{id}/history` compares an item's latest trading with the
+stored history, for example
 `/api/items/536/history` for dragon bones. Volumes count both sides: items
 bought at the high price plus items sold at the low price.
 
 - `fiveMinuteHours` and `hourlyDays`: how much history the comparison uses.
 - `volume`: `last5m`, the latest five-minute volume; `typical5m`, the median
-  five-minute volume; `typical5mThisHour`, the median at this hour of the day,
-  from hourly history; their `ratio`, preferring the hour of the day; the
+  five-minute volume, from hourly history until there are six hours of
+  five-minute data; `typical5mThisHour`, the median at this time of day: the
+  same hour and the hours either side of it on earlier days; the `basis` of
+  the comparison; their `ratio`, preferring the time of day; the
   `percentile` of five-minute periods that traded less; `lastHour` against
   `typicalHour`; and a `verdict`: `unusually high` (3 times typical or more),
   `above typical` (1.5 times), `typical` or `below typical` (half or less).
@@ -132,11 +136,12 @@ bought at the high price plus items sold at the low price.
   history.
 - `margin`: the `current` gap between the latest instant-buy and instant-sell
   prices, the `typical` gap between average buy and sell prices, their `ratio`
-  and a `verdict`.
+  and a `verdict`: `much wider than usual` (3 times or more), `wider than
+  usual` (1.5 times), `typical` or `narrower than usual` (half or less).
 - `notes`: the comparison in sentences, as the chat's language model reads it.
 
-Fields are `null` until there is enough history to compare: six hours of
-five-minute data, or three days for the hour of the day.
+Fields are `null` until there is enough history to compare: a day of hourly
+data or six hours of five-minute data, and about two days for the time of day.
 
 ## Items
 

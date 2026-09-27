@@ -46,7 +46,9 @@ app comes from the frontend dev server below, or from the container.
 database, and a Spring profile chooses where it lives:
 
 - `local` (the default) keeps it in memory, so each restart starts empty and
-  re-imports within a second.
+  re-imports within a second. It keeps two days of
+  [trading history](homelab.md#trading-history), fetched within about 15
+  seconds of starting.
 - `homelab` stores it in the file at `FLIPFINDER_DB_PATH`, `/data/flipfinder.db`
   by default, on the homelab's persistent volume. It also turns on the
   endpoints that receive data from the RuneLite plugin

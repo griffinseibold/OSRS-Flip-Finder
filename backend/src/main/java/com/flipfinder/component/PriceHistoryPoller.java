@@ -18,8 +18,8 @@ public class PriceHistoryPoller {
         this.service = service;
     }
 
-    // Each run imports a few buckets, so a first start backfills in under an hour.
-    @Scheduled(initialDelayString = "${flipfinder.history.initial-delay-ms:30000}",
+    // The first run fetches recent history within seconds; later runs backfill the rest a few buckets at a time.
+    @Scheduled(initialDelayString = "${flipfinder.history.initial-delay-ms:3000}",
             fixedDelayString = "${flipfinder.history.poll-delay-ms:15000}")
     public void poll() throws InterruptedException {
         service.catchUp(Instant.now().getEpochSecond());

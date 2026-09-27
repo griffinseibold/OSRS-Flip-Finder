@@ -52,6 +52,14 @@ public class FlipDto {
     @Schema(description = "Unix seconds when the account's buy limit window for this item resets; null without one")
     public Long limitResetsAt;
 
+    @Schema(description = "Latest five-minute volume divided by the item's usual volume, from stored trading "
+            + "history; null without enough history")
+    public Double volumeVsUsual;
+
+    @Schema(description = "Why the flip may not last, such as \"volume 18.2x usual, may not last\", when its "
+            + "volume or margin is far from usual; null otherwise")
+    public String warning;
+
     public enum LimitedBy {
         BUY_LIMIT("buyLimit"),
         BUDGET("budget"),

@@ -20,9 +20,10 @@ final class TradingHistory {
     static final double UNUSUAL = 3;
     static final double ABOVE = 1.5;
     static final double BELOW = 0.5;
-    // Six hours of five-minute buckets, and three days for a typical hour of the day.
+    // Six hours of five-minute buckets, a day of hourly ones, and about two days for a typical time of day.
     static final int MIN_FIVE_MINUTE_BUCKETS = 72;
-    static final int MIN_DAYS_FOR_HOUR_OF_DAY = 3;
+    static final int MIN_HOURLY_BUCKETS = 24;
+    static final int MIN_TIME_OF_DAY_HOURS = 4;
     private static final int BUCKETS_PER_HOUR = 12;
     private static final long DAY = 86_400;
 
@@ -47,7 +48,7 @@ final class TradingHistory {
                 ? history.volume.latestBucket
                 : hourlyBuckets.isEmpty() ? 0 : hourlyBuckets.getLast();
         history.price = price(fiveMinute, hourly, reference);
-        history.margin = margin(item, fiveMinute);
+        history.margin = margin(item, fiveMinute, hourly);
         history.notes = notes(history);
         return history;
     }
@@ -65,20 +66,28 @@ final class TradingHistory {
 
         if (volumes.length >= MIN_FIVE_MINUTE_BUCKETS) {
             volume.typical5m = typical(volumes);
+            volume.basis = "over the last " + span(volumes.length / (double) BUCKETS_PER_HOUR);
             long below = Arrays.stream(volumes).filter(v -> v < volume.last5m).count();
             volume.percentile = (int) Math.round(100.0 * below / volumes.length);
+        } else if (hourlyBuckets.size() >= MIN_HOURLY_BUCKETS) {
+            // Soon after a start there are few five-minute buckets, but hours of the last two days.
+            volume.typical5m = round1(typical(volumes(hourly, hourlyBuckets)) / BUCKETS_PER_HOUR);
+            volume.basis = "over the last " + span(hourlyBuckets.size());
         }
 
-        // Trading follows the time of day, so compare with the same hour on earlier days.
+        // Trading follows the time of day, so compare with the same hour and the hours either
+        // side of it on earlier days; the neighbours give enough samples from only two days.
         long hourOfDay = Math.floorMod(latest, DAY) / 3600;
-        List<Long> sameHour = new ArrayList<>();
+        List<Long> sameTime = new ArrayList<>();
         for (long bucket : hourlyBuckets) {
-            if (Math.floorMod(bucket, DAY) / 3600 == hourOfDay && bucket < latest - 3600) {
-                sameHour.add(bucket);
+            long distance = Math.abs(Math.floorMod(bucket, DAY) / 3600 - hourOfDay);
+            if (Math.min(distance, 24 - distance) <= 1 && bucket < latest - 3600) {
+                sameTime.add(bucket);
             }
         }
-        if (sameHour.size() >= MIN_DAYS_FOR_HOUR_OF_DAY) {
-            volume.typical5mThisHour = round1(typical(volumes(hourly, sameHour)) / BUCKETS_PER_HOUR);
+        if (sameTime.size() >= MIN_TIME_OF_DAY_HOURS) {
+            volume.typical5mThisHour = round1(typical(volumes(hourly, sameTime)) / BUCKETS_PER_HOUR);
+            volume.basis = "for this time of day";
         }
 
         Double baseline = volume.typical5mThisHour != null ? volume.typical5mThisHour : volume.typical5m;
@@ -161,15 +170,15 @@ final class TradingHistory {
         return then == null || then == 0 ? null : round1((current - then) / then * 100);
     }
 
-    private static ItemHistoryDto.Margin margin(ItemDto item, List<Point> fiveMinute) {
+    private static ItemHistoryDto.Margin margin(ItemDto item, List<Point> fiveMinute, List<Point> hourly) {
         ItemHistoryDto.Margin margin = new ItemHistoryDto.Margin();
         if (item.highPrice != null && item.lowPrice != null) {
             margin.current = item.highPrice - item.lowPrice;
         }
-        double[] spreads = fiveMinute.stream()
-                .filter(point -> point.avgHighPrice() != null && point.avgLowPrice() != null)
-                .mapToDouble(point -> point.avgHighPrice() - point.avgLowPrice())
-                .toArray();
+        double[] spreads = spreads(fiveMinute);
+        if (spreads.length < BUCKETS_PER_HOUR) {
+            spreads = spreads(hourly);
+        }
         if (spreads.length < BUCKETS_PER_HOUR) {
             return margin;
         }
@@ -182,11 +191,21 @@ final class TradingHistory {
         if (margin.typical > 0) {
             margin.ratio = round1(ratio);
         }
-        margin.verdict = ratio >= 2 ? "much wider than usual"
-                : ratio >= 1.3 ? "wider than usual"
-                : ratio <= 0.5 ? "narrower than usual"
+        // The same thresholds as volume: the top flips are wider than usual by nature, so only
+        // a margin several times its usual width is called out.
+        margin.verdict = ratio >= UNUSUAL ? "much wider than usual"
+                : ratio >= ABOVE ? "wider than usual"
+                : ratio <= BELOW ? "narrower than usual"
                 : "typical";
         return margin;
+    }
+
+    /** The gap between the average buy and sell prices of each bucket where both sides traded. */
+    private static double[] spreads(List<Point> points) {
+        return points.stream()
+                .filter(point -> point.avgHighPrice() != null && point.avgLowPrice() != null)
+                .mapToDouble(point -> point.avgHighPrice() - point.avgLowPrice())
+                .toArray();
     }
 
     private static List<String> notes(ItemHistoryDto history) {
@@ -196,11 +215,10 @@ final class TradingHistory {
             notes.add(String.format(Locale.ROOT, "There is not enough history yet to judge its volume: %s hours "
                     + "of five-minute data and %s days of hourly data.", history.fiveMinuteHours, history.hourlyDays));
         } else {
-            String basis = volume.typical5mThisHour != null ? "for this time of day" : "over the last "
-                    + span(history.fiveMinuteHours);
             Double typical = volume.typical5mThisHour != null ? volume.typical5mThisHour : volume.typical5m;
             StringBuilder note = new StringBuilder(String.format(Locale.ROOT,
-                    "%,d traded in the latest five minutes, against a typical %,.0f %s", volume.last5m, typical, basis));
+                    "%,d traded in the latest five minutes, against a typical %,.0f %s", volume.last5m, typical,
+                    volume.basis));
             if (volume.ratio != null) {
                 note.append(String.format(Locale.ROOT, " (%s times typical)", volume.ratio));
             }

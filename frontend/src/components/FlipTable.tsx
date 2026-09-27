@@ -32,9 +32,21 @@ interface FlipTableProps {
   onPageChange: (page: number) => void;
   loading: boolean;
   nowSeconds: number;
+  /** Whether the server keeps trading history to compare with. */
+  history: boolean;
 }
 
-export function FlipTable({ page, basis, sortKey, sortDirection, onSort, onPageChange, loading, nowSeconds }: FlipTableProps) {
+export function FlipTable({
+  page,
+  basis,
+  sortKey,
+  sortDirection,
+  onSort,
+  onPageChange,
+  loading,
+  nowSeconds,
+  history,
+}: FlipTableProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const toggle = (id: number) => setExpandedId((current) => (current === id ? null : id));
   const first = page.page * page.size;
@@ -116,6 +128,12 @@ export function FlipTable({ page, basis, sortKey, sortDirection, onSort, onPageC
                           </span>
                         )}
                         {isTaxExempt(flip) && <span className="tag">no tax</span>}
+                        {flip.warning && (
+                          <span className="tag tag-warning" title={`Trading far from usual: ${flip.warning}`}>
+                            unusual
+                            <span className="visually-hidden">: {flip.warning}</span>
+                          </span>
+                        )}
                       </span>
                     </th>
                     <td className="numeric">{formatGp(flip.buyPrice)}</td>
@@ -148,7 +166,7 @@ export function FlipTable({ page, basis, sortKey, sortDirection, onSort, onPageC
                   {expanded && (
                     <tr className="details-row" id={detailsId}>
                       <td colSpan={COLUMNS.length}>
-                        <ItemDetails flip={flip} basis={basis} nowSeconds={nowSeconds} />
+                        <ItemDetails flip={flip} basis={basis} nowSeconds={nowSeconds} history={history} />
                       </td>
                     </tr>
                   )}

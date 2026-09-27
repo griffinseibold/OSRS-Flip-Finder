@@ -36,26 +36,35 @@ out what you have already bought this buy-limit window.
 The model looks flips up with the same ranking as the table, then summarizes
 the best few. **Based on N flips** under an answer opens the rows it read, so
 you can check its numbers. Language models can still misread or leave things
-out, so check the price before you commit a lot of coins.
+out, so check the price before you commit a lot of coins. The chat can also
+say whether an item is trading normally; see [Is this normal?](#is-this-normal).
 
-### Is this normal?
+## Is this normal?
 
 A big margin on an item that suddenly trades ten times its usual volume is
-often a short-lived spike: the price moves before your offers fill. The
-homelab keeps a week of five-minute trading and a month of hourly trading, so
-the chat can say whether an item's latest volume, price and margin are typical:
+often a short-lived spike: the price moves before your offers fill. Flip Finder
+keeps recent trading history to tell whether an item's latest volume, price
+and margin are typical:
 
 - **Volume** is compared with the same time of day on earlier days, since the
   Grand Exchange is much busier in some hours than others. Three times the usual
   volume or more counts as unusually high, and the last hour shows whether a
   surge has lasted or was a short burst.
 - **Price** is compared with a day, a week and 30 days ago.
-- **Margin** is compared with the usual gap between buy and sell prices. A
-  margin much wider than usual often closes before offers fill.
+- **Margin** is compared with the usual gap between buy and sell prices. Three
+  times the usual width or more often closes before offers fill.
 
-When the chat suggests flips it also mentions any with unusual volume.
-**Based on N days of history** under an answer shows the comparison it used.
-History fills in over the first hour after the homelab version starts.
+A flip with unusually high volume or an unusually wide margin gets an
+**unusual** tag in the table; hover over it for the reason. Opening an item
+shows the full comparison under **Compared with usual**. Expect a fair share of
+the top flips to be tagged: a margin that is wider than usual right now is
+often what put a flip at the top.
+
+The standalone version fetches the last two days of history when it starts,
+within about 15 seconds, and keeps it in memory. The homelab version keeps a
+week of five-minute trading and a month of hourly trading on disk, and its chat
+mentions unusual flips when it suggests them. **Based on N days of history**
+under a chat answer shows the comparison it used.
 
 ## The columns
 

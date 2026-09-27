@@ -50,6 +50,10 @@ export interface Flip {
   limitedBy: LimitedBy | null;
   /** Unix seconds of the older of the latest instant-buy and instant-sell trades. */
   lastTradeTime: number | null;
+  /** Latest five-minute volume divided by the item's usual volume; null without enough history. */
+  volumeVsUsual: number | null;
+  /** Why the flip may not last, when its volume or margin is far from usual. */
+  warning: string | null;
 }
 
 export interface FlipPage {
@@ -171,6 +175,14 @@ export async function fetchAccounts(): Promise<Account[]> {
     throw new Error(`GET /api/runelite/accounts returned HTTP ${response.status}`);
   }
   return (await response.json()) as Account[];
+}
+
+export async function fetchItemHistory(itemId: number, signal?: AbortSignal): Promise<ItemHistory> {
+  const response = await fetch(`/api/items/${itemId}/history`, { headers: { Accept: 'application/json' }, signal });
+  if (!response.ok) {
+    throw new Error(`GET /api/items/${itemId}/history returned HTTP ${response.status}`);
+  }
+  return (await response.json()) as ItemHistory;
 }
 
 export interface ChatMessage {

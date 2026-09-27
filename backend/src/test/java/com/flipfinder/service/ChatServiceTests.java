@@ -158,19 +158,21 @@ class ChatServiceTests {
         flip.estimatedProfit = 9_796_700L;
         flip.limitedBy = FlipDto.LimitedBy.BUY_LIMIT;
 
-        assertThat(ChatService.line(flip, "margin 5.6x usual, may not last")).isEqualTo(
+        flip.warning = "margin 5.6x usual, may not last";
+        assertThat(ChatService.line(flip)).isEqualTo(
                 "**Old school bond**: buy 12,152,033 gp, sell 12,250,000 gp, 97,967 gp each, about 9.8M profit, "
                         + "capped by the buy limit (margin 5.6x usual, may not last)");
 
+        flip.warning = null;
         flip.estimatedProfit = 884_000L;
         flip.limitedBy = FlipDto.LimitedBy.VOLUME;
-        assertThat(ChatService.line(flip, null)).endsWith("about 884K profit, capped by trading volume");
+        assertThat(ChatService.line(flip)).endsWith("about 884K profit, capped by trading volume");
 
         flip.estimatedProfit = 0L;
-        assertThat(ChatService.line(flip, null)).endsWith("but one side has not traded in the latest five minutes");
+        assertThat(ChatService.line(flip)).endsWith("but one side has not traded in the latest five minutes");
 
         flip.estimatedProfit = null;
-        assertThat(ChatService.line(flip, null)).endsWith("97,967 gp each, buy limit unknown");
+        assertThat(ChatService.line(flip)).endsWith("97,967 gp each, buy limit unknown");
     }
 
     @Test

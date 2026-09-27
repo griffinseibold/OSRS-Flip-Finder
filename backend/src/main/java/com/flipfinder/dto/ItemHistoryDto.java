@@ -26,12 +26,20 @@ public class ItemHistoryDto {
         /** Start of the latest five-minute bucket, in epoch seconds. */
         public Long latestBucket;
         public Long last5m;
-        /** The median five-minute volume over the stored history. */
+        /**
+         * The median five-minute volume over the stored history; from hourly
+         * history while there are under six hours of five-minute buckets.
+         */
         public Double typical5m;
-        /** The median five-minute volume at this hour of the day, from hourly history. */
+        /**
+         * The median five-minute volume at this time of day, from hourly history: the
+         * same hour and the hours either side of it on earlier days.
+         */
         public Double typical5mThisHour;
         /** last5m divided by the typical volume, preferring the one for this hour. */
         public Double ratio;
+        /** What the typical volume is based on, such as "for this time of day" or "over the last 2 days". */
+        public String basis;
         /** Percentage of stored five-minute buckets that traded less than the latest one. */
         public Integer percentile;
         public Long lastHour;
@@ -54,10 +62,13 @@ public class ItemHistoryDto {
     public static class Margin {
         /** The latest instant-buy price minus the latest instant-sell price, before tax. */
         public Long current;
-        /** The median gap between the average buy and sell prices of five-minute buckets. */
+        /** The median gap between the average buy and sell prices of five-minute buckets, or hourly ones. */
         public Double typical;
         public Double ratio;
-        /** much wider than usual, wider than usual, typical, narrower than usual, or null. */
+        /**
+         * much wider than usual (3 times or more), wider than usual (1.5 times), typical,
+         * narrower than usual (half or less), or null without enough history.
+         */
         public String verdict;
     }
 }
