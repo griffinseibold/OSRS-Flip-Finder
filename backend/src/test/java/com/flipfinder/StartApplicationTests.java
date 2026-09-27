@@ -90,6 +90,12 @@ class StartApplicationTests {
 	}
 
 	@Test
+	void runeLiteEndpointsAreOffOutsideTheHomelab() throws Exception {
+		mockMvc.perform(get("/api/runelite/accounts"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
 	void unknownFlipSortIsRejected() throws Exception {
 		mockMvc.perform(get("/api/flips").param("sort", "bogus"))
 				.andExpect(status().isBadRequest());

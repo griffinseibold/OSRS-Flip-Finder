@@ -2,15 +2,18 @@ package com.flipfinder.service;
 
 import static com.flipfinder.service.FlipCalculatorTests.NOW;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import com.flipfinder.dto.FlipDto;
 import com.flipfinder.dto.FlipPageResponse;
 import com.flipfinder.dto.ItemDto;
+import com.flipfinder.dto.RuneLiteSnapshot;
 import com.flipfinder.repository.ItemRepository;
 import com.flipfinder.service.FlipQuery.Direction;
 import com.flipfinder.service.FlipQuery.Membership;
@@ -18,10 +21,12 @@ import com.flipfinder.service.FlipQuery.PriceBasis;
 import com.flipfinder.service.FlipQuery.Sort;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.web.server.ResponseStatusException;
 
 class FlipServiceTests {
     private final ItemRepository repository = mock(ItemRepository.class);
-    private final FlipService service = new FlipService(repository);
+    private final AccountService accounts = mock(AccountService.class);
+    private final FlipService service = new FlipService(repository, accounts);
 
     private static ItemDto item(int id, String name, Consumer<ItemDto> changes) {
         ItemDto item = FlipCalculatorTests.item();
@@ -32,7 +37,7 @@ class FlipServiceTests {
     }
 
     private static FlipQuery query(Sort sort, Direction direction) {
-        return new FlipQuery(PriceBasis.LATEST, "", Membership.ALL, 0, 0, null, sort, direction);
+        return new FlipQuery(PriceBasis.LATEST, "", Membership.ALL, 0, 0, null, sort, direction, null);
     }
 
     private List<String> names(FlipQuery query) {
@@ -64,7 +69,7 @@ class FlipServiceTests {
                     item.lowPriceVolume5m = 10_000L;
                 })));
 
-        FlipPageResponse page = service.find(new FlipQuery(null, null, null, 0, 0, null, null, null), 0, 50, NOW);
+        FlipPageResponse page = service.find(new FlipQuery(null, null, null, 0, 0, null, null, null, null), 0, 50, NOW);
 
         assertThat(page.items).extracting(flip -> flip.item.name)
                 .containsExactly("Liquid", "Thin", "No limit", "No trades");
@@ -103,7 +108,7 @@ class FlipServiceTests {
                 item(5, "Dear gold", item -> item.lowPrice = 50_000L),
                 item(6, "Rune bar", item -> {})));
 
-        FlipQuery query = new FlipQuery(PriceBasis.LATEST, " GOLD ", Membership.MEMBERS, 60, 10, 10_000L, null, null);
+        FlipQuery query = new FlipQuery(PriceBasis.LATEST, " GOLD ", Membership.MEMBERS, 60, 10, 10_000L, null, null, null);
         FlipPageResponse page = service.find(query, 0, 50, NOW);
 
         assertThat(page.items).extracting(flip -> flip.item.name).containsExactly("Gold leaf");
@@ -147,7 +152,7 @@ class FlipServiceTests {
                 })));
 
         for (PriceBasis basis : PriceBasis.values()) {
-            FlipQuery query = new FlipQuery(basis, "", Membership.ALL, 0, 0, 10_000_000L, null, null);
+            FlipQuery query = new FlipQuery(basis, "", Membership.ALL, 0, 0, 10_000_000L, null, null, null);
 
             assertThat(service.find(query, 0, 50, NOW).items)
                     .extracting(flip -> flip.item.name)
@@ -160,7 +165,7 @@ class FlipServiceTests {
     void ignoresTradeAgeForFiveMinuteAverages() {
         when(repository.findAll()).thenReturn(List.of(item(1, "Old", item -> item.lowPriceTime = NOW - 2 * 3600)));
 
-        FlipQuery query = new FlipQuery(PriceBasis.AVERAGE_5M, "", Membership.ALL, 60, 0, null, null, null);
+        FlipQuery query = new FlipQuery(PriceBasis.AVERAGE_5M, "", Membership.ALL, 60, 0, null, null, null, null);
 
         assertThat(service.find(query, 0, 50, NOW).items).hasSize(1);
     }
@@ -176,5 +181,108 @@ class FlipServiceTests {
         assertThat(page.totalPages).isEqualTo(2);
         assertThat(page.total).isEqualTo(3);
         assertThat(page.items).extracting((FlipDto flip) -> flip.item.name).containsExactly("C");
+    }
+
+    private static RuneLiteSnapshot account(boolean members, long inventoryCoins, Long bankCoins,
+            RuneLiteSnapshot.BuyLimitWindow... windows) {
+        RuneLiteSnapshot account = new RuneLiteSnapshot();
+        account.members = members;
+        account.inventoryCoins = inventoryCoins;
+        account.bankCoins = bankCoins;
+        account.buyLimits = List.of(windows);
+        return account;
+    }
+
+    private static RuneLiteSnapshot.BuyLimitWindow window(int itemId, long startedAt, int bought) {
+        RuneLiteSnapshot.BuyLimitWindow window = new RuneLiteSnapshot.BuyLimitWindow();
+        window.itemId = itemId;
+        window.startedAt = startedAt;
+        window.bought = bought;
+        return window;
+    }
+
+    private static FlipQuery forAccount(Long budget) {
+        return new FlipQuery(PriceBasis.LATEST, "", Membership.ALL, 0, 0, budget, null, null, 42L);
+    }
+
+    private List<ItemDto> accountItems() {
+        return List.of(
+                item(1, "Free item", item -> item.members = false),
+                item(2, "Members item", item -> item.members = true),
+                item(3, "Dear free item", item -> {
+                    item.members = false;
+                    item.lowPrice = 50_000L;
+                    item.highPrice = 55_000L;
+                }));
+    }
+
+    @Test
+    void appliesTheAccountsCoinsMembershipAndBuyLimits() {
+        when(repository.findAll()).thenReturn(accountItems());
+        when(accounts.snapshot(42L)).thenReturn(Optional.of(
+                account(false, 1_000, 44_000L, window(1, NOW - 3600, 60))));
+
+        FlipPageResponse page = service.find(forAccount(null), 0, 50, NOW);
+
+        // Free-to-play only, within 45,000 coins, and 40 left of the 100 limit.
+        assertThat(page.budget).isEqualTo(45_000L);
+        assertThat(page.items).extracting(flip -> flip.item.name).containsExactly("Free item");
+        FlipDto flip = page.items.get(0);
+        assertThat(flip.quantity).isEqualTo(40);
+        assertThat(flip.alreadyBought).isEqualTo(60);
+        assertThat(flip.limitResetsAt).isEqualTo(NOW - 3600 + AccountService.BUY_LIMIT_WINDOW_SECONDS);
+        assertThat(flip.limitedBy).isEqualTo(FlipDto.LimitedBy.BUY_LIMIT);
+    }
+
+    @Test
+    void aBudgetGivenWithTheAccountTakesPrecedence() {
+        when(repository.findAll()).thenReturn(accountItems());
+        when(accounts.snapshot(42L)).thenReturn(Optional.of(
+                account(true, 1_000, 44_000L, window(1, NOW - 3600, 60))));
+
+        FlipPageResponse page = service.find(forAccount(9_000L), 0, 50, NOW);
+
+        assertThat(page.budget).isEqualTo(9_000L);
+        assertThat(page.items).extracting(flip -> flip.item.name).containsExactly("Free item", "Members item");
+        assertThat(page.items.get(0).quantity).isEqualTo(10);
+        assertThat(page.items.get(0).limitedBy).isEqualTo(FlipDto.LimitedBy.BUDGET);
+    }
+
+    @Test
+    void exhaustedAndExpiredBuyLimits() {
+        when(repository.findAll()).thenReturn(accountItems());
+        when(accounts.snapshot(42L)).thenReturn(Optional.of(account(true, 0, 10_000_000L,
+                window(1, NOW - 5 * 3600, 100),
+                window(2, NOW - 60, 100))));
+
+        FlipPageResponse page = service.find(forAccount(null), 0, 50, NOW);
+
+        FlipDto expired = page.items.stream().filter(flip -> flip.item.id == 1).findFirst().orElseThrow();
+        FlipDto exhausted = page.items.stream().filter(flip -> flip.item.id == 2).findFirst().orElseThrow();
+        assertThat(expired.quantity).isEqualTo(100);
+        assertThat(expired.alreadyBought).isNull();
+        assertThat(exhausted.quantity).isZero();
+        assertThat(exhausted.estimatedProfit).isZero();
+    }
+
+    @Test
+    void noBudgetUntilTheBankHasBeenSeen() {
+        when(repository.findAll()).thenReturn(accountItems());
+        when(accounts.snapshot(42L)).thenReturn(Optional.of(account(true, 1_000, null)));
+
+        FlipPageResponse page = service.find(forAccount(null), 0, 50, NOW);
+
+        assertThat(page.budget).isNull();
+        assertThat(page.items).hasSize(3);
+    }
+
+    @Test
+    void anUnknownAccountIsNotFound() {
+        when(repository.findAll()).thenReturn(accountItems());
+        when(accounts.snapshot(42L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.find(forAccount(null), 0, 50, NOW))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("404");
     }
 }

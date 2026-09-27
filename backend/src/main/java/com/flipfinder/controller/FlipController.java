@@ -41,9 +41,12 @@ public class FlipController {
 			@Parameter(description = "Minimum items traded in the latest five-minute window, both prices combined")
 			@RequestParam(defaultValue = "0") long minVolume5m,
 			@Parameter(description = "Coins available to flip with: hides items that cost more and limits quantity to what it buys")
-			@RequestParam(required = false) Long budget) {
+			@RequestParam(required = false) Long budget,
+			@Parameter(description = "Account hash from the RuneLite plugin. Uses the account's coins as the budget, "
+					+ "its membership, and what it already bought in each buy limit window.")
+			@RequestParam(required = false) Long account) {
 		FlipQuery query = new FlipQuery(
-				basis, search, membership, maxTradeAgeMinutes, minVolume5m, budget, sort, direction);
+				basis, search, membership, maxTradeAgeMinutes, minVolume5m, budget, sort, direction, account);
 		return flips.find(query, page, size);
 	}
 }

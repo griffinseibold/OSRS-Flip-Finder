@@ -173,4 +173,26 @@ class FlipCalculatorTests {
             assertThat(flip.estimatedProfit).isNull();
         }
     }
+
+    @Test
+    void itemsAlreadyBoughtComeOffTheBuyLimit() {
+        ItemDto item = item();
+        item.highPriceVolume5m = 100L;
+        item.lowPriceVolume5m = 100L;
+
+        FlipDto flip = FlipCalculator.calculate(item, PriceBasis.LATEST, null, 70);
+
+        assertThat(flip.quantity).isEqualTo(30);
+        assertThat(flip.limitedBy).isEqualTo(LimitedBy.BUY_LIMIT);
+        assertThat(flip.estimatedProfit).isEqualTo(80 * 30);
+    }
+
+    @Test
+    void anExhaustedBuyLimitLeavesNothingToBuy() {
+        FlipDto flip = FlipCalculator.calculate(item(), PriceBasis.LATEST, null, 250);
+
+        assertThat(flip.quantity).isZero();
+        assertThat(flip.potentialProfit).isZero();
+        assertThat(flip.estimatedProfit).isZero();
+    }
 }

@@ -41,6 +41,11 @@ public final class FlipCalculator {
     }
 
     public static FlipDto calculate(ItemDto item, PriceBasis basis, Long budget) {
+        return calculate(item, basis, budget, 0);
+    }
+
+    /** Prices the flip for an account that already bought {@code alreadyBought} in the current buy limit window. */
+    public static FlipDto calculate(ItemDto item, PriceBasis basis, Long budget, long alreadyBought) {
         FlipDto flip = new FlipDto();
         flip.item = item;
         flip.buyPrice = basis == PriceBasis.LATEST ? item.lowPrice : round(item.averageLowPrice5m);
@@ -60,8 +65,8 @@ public final class FlipCalculator {
         // Without one there is no telling how many could be bought, so leave the
         // quantity and profit estimates empty rather than assume no limit.
         if (item.buyLimit != null) {
-            // How many to buy: one buy limit, or fewer if the budget runs out first.
-            long limit = item.buyLimit;
+            // How many to buy: what is left of the buy limit, or fewer if the budget runs out first.
+            long limit = Math.max(item.buyLimit - alreadyBought, 0);
             Long affordable = budget == null || flip.buyPrice == null || flip.buyPrice <= 0
                     ? null
                     : budget / flip.buyPrice;
