@@ -13,6 +13,7 @@ import com.flipfinder.repository.PriceHistoryRepository.Row;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -36,6 +37,10 @@ public class PriceHistoryService {
     // The wiki publishes a bucket shortly after it ends.
     private static final long PUBLISH_DELAY_SECONDS = 120;
     private static final long DAY = 86_400;
+    // Fetched first and quickly, about 70 requests: enough to compare with
+    // within seconds of starting. The rest of the history follows gently.
+    private static final long QUICK_FIVE_MINUTES = 2 * 3600;
+    private static final long QUICK_HOURLY = 2 * DAY;
 
     private final PriceHistoryRepository history;
     private final ItemRepository items;
@@ -45,6 +50,7 @@ public class PriceHistoryService {
     private final long fiveMinuteBackfill;
     private final int requestsPerRun;
     private final long requestDelayMs;
+    private final long quickRequestDelayMs;
     private long prunedAt;
 
     public PriceHistoryService(
@@ -55,7 +61,8 @@ public class PriceHistoryService {
             @Value("${flipfinder.history.hourly-days:30}") int hourlyDays,
             @Value("${flipfinder.history.five-minute-backfill-hours:24}") int fiveMinuteBackfillHours,
             @Value("${flipfinder.history.requests-per-run:20}") int requestsPerRun,
-            @Value("${flipfinder.history.request-delay-ms:1500}") long requestDelayMs) {
+            @Value("${flipfinder.history.request-delay-ms:1500}") long requestDelayMs,
+            @Value("${flipfinder.history.quick-request-delay-ms:100}") long quickRequestDelayMs) {
         this.history = history;
         this.items = items;
         this.wiki = wiki;
@@ -64,12 +71,14 @@ public class PriceHistoryService {
         this.fiveMinuteBackfill = Math.min(fiveMinuteBackfillHours * 3600L, fiveMinuteRetention);
         this.requestsPerRun = requestsPerRun;
         this.requestDelayMs = requestDelayMs;
+        this.quickRequestDelayMs = quickRequestDelayMs;
     }
 
     /**
-     * Imports buckets missing from the history, newest first and a few at a
-     * time, so a first start backfills gradually without hammering the wiki.
-     * Recent five-minute buckets come first, since the latest trading matters most.
+     * Imports buckets missing from the history, newest first. The last two
+     * hours of five-minute buckets and two days of hourly ones come quickly,
+     * so comparisons work within seconds of a start; older buckets follow a
+     * few at a time, so a long backfill does not hammer the wiki.
      *
      * @return how many buckets it requested
      */
@@ -80,15 +89,20 @@ public class PriceHistoryService {
             prunedAt = now;
         }
         try {
-            int requested = fill(FIVE_MINUTES, "/5m", now, fiveMinuteBackfill, requestsPerRun);
-            return requested + fill(HOUR, "/1h", now, hourlyRetention, requestsPerRun - requested);
+            int quick = fill(FIVE_MINUTES, "/5m", now, Math.min(QUICK_FIVE_MINUTES, fiveMinuteBackfill),
+                    Integer.MAX_VALUE, quickRequestDelayMs);
+            quick += fill(HOUR, "/1h", now, Math.min(QUICK_HOURLY, hourlyRetention),
+                    Integer.MAX_VALUE, quickRequestDelayMs);
+            int gentle = fill(FIVE_MINUTES, "/5m", now, fiveMinuteBackfill, requestsPerRun, requestDelayMs);
+            gentle += fill(HOUR, "/1h", now, hourlyRetention, requestsPerRun - gentle, requestDelayMs);
+            return quick + gentle;
         } catch (IOException | RuntimeException e) {
             logger.warn("Could not import price history: {}", e.getMessage());
             return 0;
         }
     }
 
-    private int fill(int step, String path, long now, long window, int budget)
+    private int fill(int step, String path, long now, long window, int budget, long delayMs)
             throws IOException, InterruptedException {
         long newest = Math.floorDiv(now - step - PUBLISH_DELAY_SECONDS, step) * step;
         long oldest = newest - window + step;
@@ -99,7 +113,7 @@ public class PriceHistoryService {
                 continue;
             }
             if (requested > 0) {
-                Thread.sleep(requestDelayMs);
+                Thread.sleep(delayMs);
             }
             JsonNode response = wiki.get(path + "?timestamp=" + bucket);
             requested++;
@@ -139,13 +153,22 @@ public class PriceHistoryService {
     }
 
     ItemHistoryDto summarize(ItemDto item, long now) {
+        return summarize(List.of(item), now).get(item.id);
+    }
+
+    /** Summaries for several items by id, reading the list of stored buckets once. */
+    Map<Integer, ItemHistoryDto> summarize(List<ItemDto> items, long now) {
         long fiveMinuteSince = now - fiveMinuteRetention;
         long hourlySince = now - hourlyRetention;
-        return TradingHistory.summarize(item,
-                history.series(FIVE_MINUTES, item.id, fiveMinuteSince),
-                history.tradedBuckets(FIVE_MINUTES, fiveMinuteSince),
-                history.series(HOUR, item.id, hourlySince),
-                history.tradedBuckets(HOUR, hourlySince));
+        List<Long> fiveMinuteBuckets = history.tradedBuckets(FIVE_MINUTES, fiveMinuteSince);
+        List<Long> hourlyBuckets = history.tradedBuckets(HOUR, hourlySince);
+        Map<Integer, ItemHistoryDto> summaries = new HashMap<>();
+        for (ItemDto item : items) {
+            summaries.put(item.id, TradingHistory.summarize(item,
+                    history.series(FIVE_MINUTES, item.id, fiveMinuteSince), fiveMinuteBuckets,
+                    history.series(HOUR, item.id, hourlySince), hourlyBuckets));
+        }
+        return summaries;
     }
 
     /** An item looked up by name, and other items the name also matches. */

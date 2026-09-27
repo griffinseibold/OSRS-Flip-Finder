@@ -14,7 +14,9 @@ docker run --rm --publish 8081:8080 ghcr.io/griffinseibold/osrs-flip-finder:late
 ```
 
 Open <http://localhost:8081>. Prices load a few seconds after it starts and
-refresh every five minutes. Press Ctrl+C to stop it.
+refresh every five minutes. Within about 15 seconds it also has the last two
+days of trading history, so it can flag flips whose volume or margin is far
+from usual. Press Ctrl+C to stop it.
 
 ## Run it on the homelab
 

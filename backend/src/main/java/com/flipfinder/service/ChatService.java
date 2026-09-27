@@ -203,8 +203,7 @@ public class ChatService {
         result.put("matchingItems", page.total);
         List<Map<String, Object>> flips = new ArrayList<>();
         for (FlipDto flip : shown) {
-            ItemHistoryDto summary = history.map(service -> service.summarize(flip.item, now)).orElse(null);
-            flips.add(describe(flips.size() + 1, flip, summary, now));
+            flips.add(describe(flips.size() + 1, flip, now));
         }
         result.put("flips", flips);
         return json(result);
@@ -244,7 +243,7 @@ public class ChatService {
      * than composing it: a small model left alone drops digits from long
      * prices and attaches warnings to the wrong flips.
      */
-    static String line(FlipDto flip, String warning) {
+    static String line(FlipDto flip) {
         StringBuilder line = new StringBuilder(String.format(Locale.ROOT, "**%s**: buy %s, sell %s, %s each",
                 flip.item.name, coins(flip.buyPrice), coins(flip.sellPrice), coins(flip.margin)));
         if (flip.estimatedProfit == null) {
@@ -261,8 +260,8 @@ public class ChatService {
                 });
             }
         }
-        if (warning != null) {
-            line.append(" (").append(warning).append(')');
+        if (flip.warning != null) {
+            line.append(" (").append(flip.warning).append(')');
         }
         return line.toString();
     }
@@ -289,12 +288,12 @@ public class ChatService {
      * already written out, because small models drop digits when they reformat
      * a long raw number such as 12152033.
      */
-    private static Map<String, Object> describe(int rank, FlipDto flip, ItemHistoryDto history, long now) {
+    private static Map<String, Object> describe(int rank, FlipDto flip, long now) {
         Map<String, Object> row = new LinkedHashMap<>();
         // Small models reorder a list unless each row says where it belongs.
         row.put("rank", rank);
         row.put("item", flip.item.name);
-        row.put("line", line(flip, history == null ? null : TradingHistory.warning(history)));
+        row.put("line", line(flip));
         row.put("members", flip.item.members);
         row.put("buyAt", coins(flip.buyPrice));
         row.put("sellAt", coins(flip.sellPrice));
@@ -311,9 +310,7 @@ public class ChatService {
         row.put("traded5mAtLowPrice", flip.item.lowPriceVolume5m);
         row.put("traded5mAtHighPrice", flip.item.highPriceVolume5m);
         row.put("lastTradeMinutesAgo", flip.lastTradeTime == null ? null : (now - flip.lastTradeTime) / 60);
-        if (history != null) {
-            row.put("volumeVsTypical", history.volume.ratio);
-        }
+        row.put("volumeVsUsual", flip.volumeVsUsual);
         return row;
     }
 

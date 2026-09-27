@@ -181,6 +181,7 @@ export function App() {
               onPageChange={setPage}
               loading={loading}
               nowSeconds={now}
+              history={features.history}
             />
             <Method />
           </>

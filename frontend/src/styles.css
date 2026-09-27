@@ -1115,3 +1115,26 @@ h3 {
   margin: 8px 0 0;
   font-size: 12.5px;
 }
+
+.tag-warning {
+  color: var(--warning-ink);
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+}
+
+.details-warning {
+  margin: 0 0 12px;
+}
+
+/* The history comparison reads best on full-width lines below the other sections. */
+.details-history {
+  grid-column: 1 / -1;
+}
+
+.details-history dl {
+  grid-template-columns: max-content 1fr;
+}
+
+.details-history dd {
+  text-align: left;
+}

@@ -29,11 +29,12 @@ class TradingHistoryTests {
         return new Point(timestamp, 1_010L, volume / 2, 990L, volume - volume / 2);
     }
 
-    /** Seven days of hourly trading: 1,200 an hour, but 2,400 at 20:00. */
+    /** Seven days of hourly trading: 1,200 an hour, but 2,400 an hour from 19:00 to 22:00. */
     private static List<Point> hourly() {
         List<Point> hourly = new ArrayList<>();
         for (long bucket = DAY_START; bucket < DAY_START + 7 * DAY; bucket += 3600) {
-            hourly.add(point(bucket, (bucket % DAY) / 3600 == 20 ? 2_400 : 1_200));
+            long hour = (bucket % DAY) / 3600;
+            hourly.add(point(bucket, hour >= 19 && hour <= 21 ? 2_400 : 1_200));
         }
         return hourly;
     }
@@ -60,7 +61,7 @@ class TradingHistoryTests {
         ItemHistoryDto history = TradingHistory.summarize(item(), fiveMinute, timestamps(fiveMinute),
                 hourly, timestamps(hourly));
 
-        // 20:00 usually trades 2,400 an hour: 200 per five minutes.
+        // The evening usually trades 2,400 an hour: 200 per five minutes.
         assertThat(history.volume.typical5mThisHour).isEqualTo(200.0);
         assertThat(history.volume.typical5m).isEqualTo(100.0);
         assertThat(history.volume.last5m).isEqualTo(1_200);
@@ -98,6 +99,60 @@ class TradingHistoryTests {
         assertThat(history.volume.last5m).isEqualTo(10);
         assertThat(history.volume.ratio).isEqualTo(10.0);
         assertThat(history.volume.verdict).isEqualTo("unusually high");
+    }
+
+    @Test
+    void comparesWithHourlyHistorySoonAfterAStart() {
+        // Half an hour of five-minute buckets, but a day of hourly ones trading 1,200 an hour:
+        // too few evenings for a time-of-day comparison.
+        long latest = DAY_START + 2 * DAY + 20 * 3600 + 55 * 60;
+        List<Point> fiveMinute = new ArrayList<>();
+        for (long bucket = latest - 1500; bucket <= latest; bucket += 300) {
+            fiveMinute.add(point(bucket, bucket == latest ? 500 : 100));
+        }
+        List<Point> hourly = new ArrayList<>();
+        for (long bucket = latest - 55 * 60 - 24 * 3600; bucket < latest - 55 * 60; bucket += 3600) {
+            hourly.add(new Point(bucket, 1_020L, 600, 980L, 600));
+        }
+        ItemDto item = item();
+        item.highPrice = 1_150L;
+        item.lowPrice = 1_000L;
+
+        ItemHistoryDto history = TradingHistory.summarize(item, fiveMinute, timestamps(fiveMinute),
+                hourly, timestamps(hourly));
+
+        assertThat(history.volume.typical5mThisHour).isNull();
+        assertThat(history.volume.typical5m).isEqualTo(100.0);
+        assertThat(history.volume.basis).isEqualTo("over the last 24 hours");
+        assertThat(history.volume.ratio).isEqualTo(5.0);
+        assertThat(history.volume.verdict).isEqualTo("unusually high");
+        assertThat(history.volume.percentile).isNull();
+        // Too few five-minute buckets with both prices, so the margin is compared with hourly ones.
+        assertThat(history.margin.typical).isEqualTo(40.0);
+        assertThat(history.margin.verdict).isEqualTo("much wider than usual");
+        assertThat(history.notes.getFirst()).startsWith(
+                "500 traded in the latest five minutes, against a typical 100 over the last 24 hours");
+    }
+
+    @Test
+    void comparesWithTheTimeOfDayFromTwoDaysOfHourlyHistory() {
+        // Two days of hourly history: quiet nights, busy evenings.
+        long latest = DAY_START + 2 * DAY + 20 * 3600 + 55 * 60;
+        List<Point> hourly = new ArrayList<>();
+        for (long bucket = latest - 55 * 60 - 2 * DAY; bucket < latest - 55 * 60; bucket += 3600) {
+            long hour = (bucket % DAY) / 3600;
+            hourly.add(point(bucket, hour >= 18 ? 6_000 : 600));
+        }
+        List<Point> fiveMinute = List.of(point(latest, 600));
+
+        ItemHistoryDto history = TradingHistory.summarize(item(), fiveMinute, timestamps(fiveMinute),
+                hourly, timestamps(hourly));
+
+        // A busy evening is typical for the evening, though well above the day's median.
+        assertThat(history.volume.typical5mThisHour).isEqualTo(500.0);
+        assertThat(history.volume.basis).isEqualTo("for this time of day");
+        assertThat(history.volume.ratio).isEqualTo(1.2);
+        assertThat(history.volume.verdict).isEqualTo("typical");
     }
 
     @Test

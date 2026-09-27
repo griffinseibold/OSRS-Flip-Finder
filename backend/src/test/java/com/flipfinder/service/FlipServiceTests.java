@@ -3,16 +3,21 @@ package com.flipfinder.service;
 import static com.flipfinder.service.FlipCalculatorTests.NOW;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
 import com.flipfinder.dto.FlipDto;
 import com.flipfinder.dto.FlipPageResponse;
 import com.flipfinder.dto.ItemDto;
+import com.flipfinder.dto.ItemHistoryDto;
 import com.flipfinder.dto.RuneLiteSnapshot;
 import com.flipfinder.repository.ItemRepository;
 import com.flipfinder.service.FlipQuery.Direction;
@@ -26,7 +31,7 @@ import org.springframework.web.server.ResponseStatusException;
 class FlipServiceTests {
     private final ItemRepository repository = mock(ItemRepository.class);
     private final AccountService accounts = mock(AccountService.class);
-    private final FlipService service = new FlipService(repository, accounts);
+    private final FlipService service = new FlipService(repository, accounts, Optional.empty());
 
     private static ItemDto item(int id, String name, Consumer<ItemDto> changes) {
         ItemDto item = FlipCalculatorTests.item();
@@ -42,6 +47,35 @@ class FlipServiceTests {
 
     private List<String> names(FlipQuery query) {
         return service.find(query, 0, 50, NOW).items.stream().map(flip -> flip.item.name).toList();
+    }
+
+    @Test
+    void flagsReturnedFlipsTradingFarFromUsual() {
+        PriceHistoryService history = mock(PriceHistoryService.class);
+        FlipService service = new FlipService(repository, accounts, Optional.of(history));
+        ItemDto spiking = item(1, "Spiking", item -> { });
+        ItemDto steady = item(2, "Steady", item -> item.highPrice = 900L);
+        when(repository.findAll()).thenReturn(List.of(spiking, steady));
+        ItemHistoryDto spike = summary(6.0, "unusually high");
+        ItemHistoryDto usual = summary(1.1, "typical");
+        when(history.summarize(anyList(), eq(NOW))).thenReturn(Map.of(1, spike, 2, usual));
+
+        FlipPageResponse page = service.find(query(Sort.NAME, Direction.ASC), 0, 1, NOW);
+
+        // Only the page and the top flip are compared, not every match.
+        verify(history).summarize(List.of(spiking, spiking), NOW);
+        assertThat(page.items.getFirst().volumeVsUsual).isEqualTo(6.0);
+        assertThat(page.items.getFirst().warning).isEqualTo("volume 6.0x usual, may not last");
+        assertThat(page.topFlip.warning).isEqualTo("volume 6.0x usual, may not last");
+    }
+
+    private static ItemHistoryDto summary(double ratio, String verdict) {
+        ItemHistoryDto summary = new ItemHistoryDto();
+        summary.volume = new ItemHistoryDto.Volume();
+        summary.volume.ratio = ratio;
+        summary.volume.verdict = verdict;
+        summary.margin = new ItemHistoryDto.Margin();
+        return summary;
     }
 
     @Test

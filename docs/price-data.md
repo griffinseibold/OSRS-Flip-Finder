@@ -12,14 +12,17 @@ API at `https://prices.runescape.wiki/api/v2/osrs`:
 - `/5m`: average prices and traded volumes for the latest five-minute window.
 
 It makes these three bulk requests at startup and every five minutes, never
-one request per item.
-
-The homelab version also keeps [trading history](homelab.md#trading-history)
-from `/5m?timestamp=` and `/1h?timestamp=`, which return every item's averages
-for one past five-minute or hourly window. It requests each window once, and
-stores its average prices rounded to whole coins. At the time of writing `/mapping` lists 4,662 items and
+one request per item. At the time of writing `/mapping` lists 4,662 items and
 `/latest` prices 4,539 of them: items never seen trading are left out, and
 five-minute coverage depends on how busy each window is.
+
+Flip Finder also keeps [trading history](using-flip-finder.md#is-this-normal)
+from `/5m?timestamp=` and `/1h?timestamp=`, which return every item's averages
+for one past five-minute or hourly window. It requests each window once, and
+stores average prices rounded to whole coins. Each start fetches the last two
+hours of five-minute windows and two days of hourly ones, about 70 requests
+and 18 MB; the homelab version then backfills the rest of its
+[history](homelab.md#trading-history) slowly.
 
 ## API rules
 

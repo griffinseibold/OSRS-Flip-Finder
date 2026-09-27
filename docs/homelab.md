@@ -43,20 +43,30 @@ users, so an answer can wait while they are busy.
 ## Trading history
 
 The homelab version stores each item's average prices and volumes from the
-wiki's `/5m` and `/1h` endpoints, so the chat can tell whether an item's latest
-trading is typical. It keeps:
+wiki's `/5m` and `/1h` endpoints, so the chat and the flips table can tell
+whether an item's latest trading is typical. It keeps:
 
 | History | Kept for | Rows | Disk |
 | --- | --- | --- | --- |
 | Five-minute buckets | 7 days | About 3.6 million | About 95 MB |
 | Hourly buckets | 30 days | About 2.4 million | About 60 MB |
 
-On its first start it fetches the last 24 hours of five-minute buckets and 30
-days of hourly ones, about 1,000 requests. It spreads them out, a request
-every second and a half in batches of 20, so the backfill takes under an hour;
-until then the chat says when it lacks the history to judge. After that it fetches each new bucket
-as the wiki publishes it, catches up on gaps after a restart, and deletes
-buckets older than it keeps once an hour.
+On its first start it fetches the last two hours of five-minute buckets and
+two days of hourly ones within about 15 seconds, enough to compare with. The
+rest, 24 hours of five-minute buckets and 30 days of hourly ones, about 1,000
+requests, follows a request every second and a half in batches of 20, so the
+full backfill takes under an hour. After that it fetches each new bucket as the
+wiki publishes it and deletes buckets older than it keeps once an hour.
+
+The history is stored in the SQLite database on Flip Finder's persistent
+volume, so restarts, upgrades and Argo CD syncs keep it. A restart only
+fetches the buckets missed while it was down. Deployments stop the old pod
+before starting the new one, so two versions never write to the database at
+once. Deleting the Kind cluster deletes the volume, like every `standard` PVC
+on the homelab; the homelab's `./scripts/backup-dev.py create` archives it
+with the others, and its
+[recovery guide](https://github.com/griffinseibold/Homelab/blob/master/docs/recovery.md)
+restores it.
 
 The chat reads the history with its `item_history` tool, and the numbers are
 worked out by the server rather than the language model, which is unreliable

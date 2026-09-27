@@ -1,16 +1,21 @@
 import { BUYING_LIMITS_URL, priceHistoryUrl, wikiItemUrl, type Flip, type PriceBasis } from '../lib/api';
 import { formatAge, formatClock, formatGp, formatSignedGp, tone } from '../lib/format';
+import { useItemHistory } from '../hooks/useItemHistory';
+import { HistoryFacts, historySpan } from './HistoryFacts';
 
 interface ItemDetailsProps {
   flip: Flip;
   basis: PriceBasis;
   nowSeconds: number;
+  /** Whether the server keeps trading history to compare with. */
+  history: boolean;
 }
 
 const TAX_CAP = 5_000_000;
 
-export function ItemDetails({ flip, basis, nowSeconds }: ItemDetailsProps) {
+export function ItemDetails({ flip, basis, nowSeconds, history }: ItemDetailsProps) {
   const { item } = flip;
+  const usual = useItemHistory(item.id, history);
   const traded = (price: number | null, time: number | null) =>
     price === null ? 'No trades seen' : `${formatGp(price)} gp · ${formatAge(time, nowSeconds)}`;
   const averaged = (price: number | null, volume: number | null) =>
@@ -19,6 +24,11 @@ export function ItemDetails({ flip, basis, nowSeconds }: ItemDetailsProps) {
   return (
     <div className="details">
       {item.examine && <p className="examine">{item.examine}</p>}
+      {flip.warning && (
+        <p className="banner banner-warning details-warning">
+          Trading far from usual: {flip.warning}. Prices often move back before offers fill.
+        </p>
+      )}
 
       <div className="details-grid">
         <section>
@@ -121,6 +131,18 @@ export function ItemDetails({ flip, basis, nowSeconds }: ItemDetailsProps) {
             </a>
           </p>
         </section>
+
+        {usual && (
+          <section className="details-history">
+            <h3>
+              Compared with usual
+              {usual.status === 'ready' && <span className="muted"> over {historySpan(usual.history)}</span>}
+            </h3>
+            {usual.status === 'loading' && <p className="muted">Loading history&hellip;</p>}
+            {usual.status === 'error' && <p className="muted">History is unavailable.</p>}
+            {usual.status === 'ready' && <HistoryFacts history={usual.history} />}
+          </section>
+        )}
       </div>
     </div>
   );

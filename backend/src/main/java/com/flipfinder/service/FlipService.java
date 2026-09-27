@@ -3,6 +3,7 @@ package com.flipfinder.service;
 import com.flipfinder.dto.FlipDto;
 import com.flipfinder.dto.FlipPageResponse;
 import com.flipfinder.dto.ItemDto;
+import com.flipfinder.dto.ItemHistoryDto;
 import com.flipfinder.dto.RuneLiteSnapshot;
 import com.flipfinder.repository.ItemRepository;
 import com.flipfinder.service.FlipQuery.Direction;
@@ -10,10 +11,12 @@ import com.flipfinder.service.FlipQuery.Membership;
 import com.flipfinder.service.FlipQuery.PriceBasis;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 import org.springframework.http.HttpStatus;
@@ -31,10 +34,12 @@ public class FlipService {
 
     private final ItemRepository repository;
     private final AccountService accounts;
+    private final Optional<PriceHistoryService> history;
 
-    public FlipService(ItemRepository repository, AccountService accounts) {
+    public FlipService(ItemRepository repository, AccountService accounts, Optional<PriceHistoryService> history) {
         this.repository = repository;
         this.accounts = accounts;
+        this.history = history;
     }
 
     public FlipPageResponse find(FlipQuery query, int page, int size) {
@@ -79,6 +84,20 @@ public class FlipService {
         if (!search.isEmpty()) {
             response.searchMatches = (long) searched.size();
         }
+        // Only the flips returned are compared with history: a page, not the whole catalogue.
+        history.ifPresent(service -> {
+            List<FlipDto> shown = new ArrayList<>(response.items);
+            if (response.topFlip != null) {
+                shown.add(response.topFlip);
+            }
+            Map<Integer, ItemHistoryDto> summaries = service.summarize(shown.stream().map(flip -> flip.item).toList(),
+                    nowSeconds);
+            for (FlipDto flip : shown) {
+                ItemHistoryDto summary = summaries.get(flip.item.id);
+                flip.volumeVsUsual = summary.volume.ratio;
+                flip.warning = TradingHistory.warning(summary);
+            }
+        });
         long latestTrade = items.stream()
                 .mapToLong(item -> Math.max(orZero(item.highPriceTime), orZero(item.lowPriceTime)))
                 .max()
