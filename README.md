@@ -43,9 +43,10 @@ shows, for each item:
 By default the list also hides items that have not traded on both sides within
 the last hour or traded fewer than ten times in the last five minutes. Set a
 **budget** (such as `10m`) to hide items that cost more than you have and
-limit each flip to what you can afford. Filters, sorting and the budget are
-remembered in the browser. Selecting an item shows every field the API returns
-for it, the four-hour estimate step by step, and links to the OSRS Wiki.
+limit each flip to what you can afford. Filters, sorting, the budget and the
+light, dark or automatic theme (switched in the header) are remembered in the
+browser. Selecting an item shows every field the API returns for it, the
+four-hour estimate step by step, and links to the OSRS Wiki.
 
 ## API
 

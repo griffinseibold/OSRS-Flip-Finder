@@ -2,10 +2,12 @@ import { useState } from 'react';
 
 import { Filters } from './components/Filters';
 import { FlipTable } from './components/FlipTable';
+import { Segmented } from './components/Segmented';
 import { Summary } from './components/Summary';
 import { useDebouncedValue } from './hooks/useDebouncedValue';
 import { useFlips } from './hooks/useFlips';
 import { useNow } from './hooks/useNow';
+import { useTheme, type Theme } from './hooks/useTheme';
 import { BUYING_LIMITS_URL, type SortKey } from './lib/api';
 import { formatAge, formatClock, formatGp, parseCoins } from './lib/format';
 import { useSettings } from './settings';
@@ -14,6 +16,7 @@ const PAGE_SIZE = 50;
 
 export function App() {
   const [settings, update] = useSettings();
+  const [theme, setTheme] = useTheme();
   const [search, setSearch] = useState('');
   // Typed fields only query the server once typing pauses.
   const debouncedSearch = useDebouncedValue(search.trim(), 250);
@@ -70,6 +73,19 @@ export function App() {
           <button type="button" className="button" onClick={reload} disabled={loading}>
             {loading ? 'Loading…' : 'Refresh'}
           </button>
+          <Segmented<Theme>
+            legend="Theme"
+            legendHidden
+            className="segmented theme-switch"
+            name="theme"
+            value={theme}
+            options={[
+              { value: 'auto', label: 'Auto' },
+              { value: 'light', label: 'Light' },
+              { value: 'dark', label: 'Dark' },
+            ]}
+            onChange={setTheme}
+          />
         </div>
       </header>
 
