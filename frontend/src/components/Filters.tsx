@@ -13,12 +13,34 @@ interface FiltersProps {
 
 export function Filters({ settings, onChange, search, onSearchChange }: FiltersProps) {
   const id = useId();
-  const cashStack = parseCoins(settings.cashStack);
-  const cashInvalid = settings.cashStack.trim() !== '' && cashStack === null;
+  const budget = parseCoins(settings.budget);
+  const budgetInvalid = settings.budget.trim() !== '' && budget === null;
 
   return (
     <section className="filters" aria-label="Filters">
-      <div className="field field-search">
+      <div className="field">
+        <label htmlFor={`${id}-budget`}>Budget</label>
+        <input
+          id={`${id}-budget`}
+          inputMode="decimal"
+          placeholder="e.g. 10m"
+          value={settings.budget}
+          onChange={(event) => onChange({ budget: event.target.value })}
+          aria-invalid={budgetInvalid}
+          aria-describedby={`${id}-budget-hint`}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <p id={`${id}-budget-hint`} className={budgetInvalid ? 'hint hint-error' : 'hint'}>
+          {budgetInvalid
+            ? 'Try 500k, 10m or 1.5b'
+            : budget !== null
+              ? `${formatGp(budget)} gp; pricier items hidden`
+              : 'No limit on coins'}
+        </p>
+      </div>
+
+      <div className="field">
         <label htmlFor={`${id}-search`}>Search items</label>
         <input
           id={`${id}-search`}
@@ -29,24 +51,6 @@ export function Filters({ settings, onChange, search, onSearchChange }: FiltersP
           autoComplete="off"
           spellCheck={false}
         />
-      </div>
-
-      <div className="field field-cash">
-        <label htmlFor={`${id}-cash`}>Cash stack</label>
-        <input
-          id={`${id}-cash`}
-          inputMode="decimal"
-          placeholder="Unlimited"
-          value={settings.cashStack}
-          onChange={(event) => onChange({ cashStack: event.target.value })}
-          aria-invalid={cashInvalid}
-          aria-describedby={`${id}-cash-hint`}
-          autoComplete="off"
-          spellCheck={false}
-        />
-        <p id={`${id}-cash-hint`} className={cashInvalid ? 'hint hint-error' : 'hint'}>
-          {cashInvalid ? 'Try 500k, 10m or 1.5b' : cashStack !== null ? `${formatGp(cashStack)} gp` : 'Caps quantity per flip'}
-        </p>
       </div>
 
       <Segmented<PriceBasis>

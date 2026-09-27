@@ -23,7 +23,8 @@ public class FlipDto {
     @Schema(description = "Margin as a fraction of the buy price")
     public Double roi;
 
-    @Schema(description = "One four-hour buy limit, reduced to what the cash stack affords")
+    @Schema(description = "One four-hour buy limit, reduced to what the budget affords; "
+            + "null when the item has no known buy limit")
     public Long quantity;
 
     @Schema(description = "Margin across the whole quantity")
@@ -32,13 +33,14 @@ public class FlipDto {
     @Schema(description = "Items traded in the latest five-minute window, at both prices")
     public Long volume5m;
 
-    @Schema(description = "Quantity that could fill in four hours at the five-minute trading pace")
+    @Schema(description = "Quantity that could fill in four hours at the five-minute trading pace; "
+            + "null when the item has no known buy limit")
     public Long fillableQuantity;
 
     @Schema(description = "Margin across the fillable quantity: the expected four-hour profit")
     public Long estimatedProfit;
 
-    @Schema(description = "What caps the fillable quantity")
+    @Schema(description = "What caps the fillable quantity; null when the item has no known buy limit")
     public LimitedBy limitedBy;
 
     @Schema(description = "Unix seconds of the older of the latest instant-buy and instant-sell trades")
@@ -46,7 +48,7 @@ public class FlipDto {
 
     public enum LimitedBy {
         BUY_LIMIT("buyLimit"),
-        CASH_STACK("cashStack"),
+        BUDGET("budget"),
         VOLUME("volume");
 
         private final String value;

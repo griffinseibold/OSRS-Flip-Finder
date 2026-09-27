@@ -17,7 +17,7 @@ import java.util.function.Function;
 import org.springframework.stereotype.Service;
 
 /**
- * Ranks items as flips. Sort keys depend on the price basis and cash stack in
+ * Ranks items as flips. Sort keys depend on the price basis and budget in
  * each request, so every item is priced and sorted in memory; the catalogue is
  * a few thousand rows.
  */
@@ -41,7 +41,7 @@ public class FlipService {
 
         List<FlipDto> matches = items.stream()
                 .filter(item -> item.name.toLowerCase(Locale.ROOT).contains(search))
-                .map(item -> FlipCalculator.calculate(item, query.basis(), query.cashStack()))
+                .map(item -> FlipCalculator.calculate(item, query.basis(), query.budget()))
                 .filter(flip -> matchesFilters(flip, query, nowSeconds))
                 .sorted(comparator(query.sort(), query.direction()))
                 .toList();
@@ -89,8 +89,24 @@ public class FlipService {
         if (orZero(flip.volume5m) < query.minVolume5m()) {
             return false;
         }
-        // Hide items the cash stack cannot buy even one of.
-        return query.cashStack() == null || flip.buyPrice == null || flip.buyPrice <= query.cashStack();
+        // Hide items the budget cannot buy even one of. Five-minute averages can
+        // be missing for an item that still has a latest price, so fall back to
+        // that; an item with no price at all cannot be shown as affordable.
+        if (query.budget() != null) {
+            Long price = firstNonNull(flip.buyPrice, flip.item.lowPrice, flip.item.highPrice);
+            return price != null && price <= query.budget();
+        }
+        return true;
+    }
+
+    @SafeVarargs
+    private static <T> T firstNonNull(T... values) {
+        for (T value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     static Comparator<FlipDto> comparator(FlipQuery.Sort sort, Direction direction) {

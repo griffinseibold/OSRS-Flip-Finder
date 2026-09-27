@@ -7,8 +7,8 @@ export interface Settings {
   membership: Membership;
   maxTradeAgeMinutes: number;
   minVolume5m: number;
-  /** Raw text of the cash stack field, e.g. "10m". */
-  cashStack: string;
+  /** Raw text of the budget field, e.g. "10m". */
+  budget: string;
   sortKey: SortKey;
   sortDirection: SortDirection;
 }
@@ -50,7 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
   membership: 'all',
   maxTradeAgeMinutes: 60,
   minVolume5m: 10,
-  cashStack: '',
+  budget: '',
   sortKey: 'estimatedProfit',
   sortDirection: 'desc',
 };
@@ -62,7 +62,7 @@ function oneOf<T>(value: unknown, allowed: readonly T[], fallback: T): T {
 }
 
 function readSettings(): Settings {
-  let stored: Partial<Record<keyof Settings, unknown>> = {};
+  let stored: Partial<Record<keyof Settings | 'cashStack', unknown>> = {};
   try {
     stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') ?? {};
   } catch {
@@ -74,7 +74,8 @@ function readSettings(): Settings {
     membership: oneOf(stored.membership, ['all', 'f2p', 'members'], d.membership),
     maxTradeAgeMinutes: oneOf(stored.maxTradeAgeMinutes, TRADE_AGE_OPTIONS.map((o) => o.value), d.maxTradeAgeMinutes),
     minVolume5m: oneOf(stored.minVolume5m, VOLUME_OPTIONS.map((o) => o.value), d.minVolume5m),
-    cashStack: typeof stored.cashStack === 'string' ? stored.cashStack : d.cashStack,
+    // Earlier versions called the budget a cash stack.
+    budget: [stored.budget, stored.cashStack].find((value): value is string => typeof value === 'string') ?? d.budget,
     sortKey: oneOf(stored.sortKey, SORT_KEYS, d.sortKey),
     sortDirection: oneOf(stored.sortDirection, ['asc', 'desc'], d.sortDirection),
   };

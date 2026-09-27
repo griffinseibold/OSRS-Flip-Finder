@@ -6,7 +6,7 @@ import { Summary } from './components/Summary';
 import { useDebouncedValue } from './hooks/useDebouncedValue';
 import { useFlips } from './hooks/useFlips';
 import { useNow } from './hooks/useNow';
-import type { SortKey } from './lib/api';
+import { BUYING_LIMITS_URL, type SortKey } from './lib/api';
 import { formatAge, formatClock, formatGp, parseCoins } from './lib/format';
 import { useSettings } from './settings';
 
@@ -17,7 +17,7 @@ export function App() {
   const [search, setSearch] = useState('');
   // Typed fields only query the server once typing pauses.
   const debouncedSearch = useDebouncedValue(search.trim(), 250);
-  const cashStack = parseCoins(useDebouncedValue(settings.cashStack, 250));
+  const budget = parseCoins(useDebouncedValue(settings.budget, 250));
   const now = useNow();
 
   const filters = {
@@ -28,7 +28,7 @@ export function App() {
     membership: settings.membership,
     maxTradeAgeMinutes: settings.maxTradeAgeMinutes,
     minVolume5m: settings.minVolume5m,
-    cashStack,
+    budget,
   };
   // Changing any filter or the sort goes back to the first page.
   const filterKey = JSON.stringify(filters);
@@ -118,7 +118,7 @@ export function App() {
               search={search}
               onSearchChange={setSearch}
             />
-            <Summary page={data} />
+            <Summary page={data} budget={budget} />
             {hiddenMatches > 0 && (
               <p className="banner">
                 {formatGp(hiddenMatches)} {data.total > 0 && 'more '}
@@ -127,7 +127,7 @@ export function App() {
                 <button
                   type="button"
                   className="link-button"
-                  onClick={() => update({ membership: 'all', maxTradeAgeMinutes: 0, minVolume5m: 0, cashStack: '' })}
+                  onClick={() => update({ membership: 'all', maxTradeAgeMinutes: 0, minVolume5m: 0, budget: '' })}
                 >
                   Clear filters
                 </button>
@@ -179,7 +179,12 @@ function Method() {
         </li>
         <li>
           <strong>Potential</strong> is the margin across one whole buy limit, which resets every four hours, or fewer
-          items if your cash stack can&rsquo;t afford the whole limit.
+          items if your budget can&rsquo;t afford the whole limit. Limits come from the wiki&rsquo;s{' '}
+          <a href={BUYING_LIMITS_URL} target="_blank" rel="noreferrer">
+            buying limits
+          </a>{' '}
+          list. About 500 items have no known limit; they get no potential or estimated profit and sort last, since
+          assuming no limit would overstate them.
         </li>
         <li>
           <strong>5-min volume</strong> is how many items traded at the low and at the high price in the latest
@@ -189,7 +194,7 @@ function Method() {
         </li>
         <li>
           <strong>Est. profit</strong> is the margin across what could fill in four hours (48 five-minute windows) at
-          that pace, capped by the buy limit and cash stack. It assumes you get every trade at your price, so treat it as
+          that pace, capped by the buy limit and your budget. It assumes you get every trade at your price, so treat it as
           an upper bound: other flippers compete for the same volume.
         </li>
       </ul>

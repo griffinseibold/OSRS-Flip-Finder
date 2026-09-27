@@ -40,10 +40,10 @@ public class FlipController {
 			@RequestParam(defaultValue = "0") int maxTradeAgeMinutes,
 			@Parameter(description = "Minimum items traded in the latest five-minute window, both prices combined")
 			@RequestParam(defaultValue = "0") long minVolume5m,
-			@Parameter(description = "Coins available: limits quantity and hides items that cost more")
-			@RequestParam(required = false) Long cashStack) {
+			@Parameter(description = "Coins available to flip with: hides items that cost more and limits quantity to what it buys")
+			@RequestParam(required = false) Long budget) {
 		FlipQuery query = new FlipQuery(
-				basis, search, membership, maxTradeAgeMinutes, minVolume5m, cashStack, sort, direction);
+				basis, search, membership, maxTradeAgeMinutes, minVolume5m, budget, sort, direction);
 		return flips.find(query, page, size);
 	}
 }

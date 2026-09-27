@@ -1,4 +1,4 @@
-import { priceHistoryUrl, wikiItemUrl, type Flip, type PriceBasis } from '../lib/api';
+import { BUYING_LIMITS_URL, priceHistoryUrl, wikiItemUrl, type Flip, type PriceBasis } from '../lib/api';
 import { formatAge, formatClock, formatGp, formatSignedGp, tone } from '../lib/format';
 
 interface ItemDetailsProps {
@@ -41,9 +41,15 @@ export function ItemDetails({ flip, basis, nowSeconds }: ItemDetailsProps) {
           <dl>
             <dt>Quantity</dt>
             <dd>
-              {flip.quantity === null ? 'Unknown buy limit' : formatGp(flip.quantity)}
-              {flip.quantity !== null && (
-                <span className="muted"> {flip.quantity === item.buyLimit ? 'buy limit' : 'cash stack'}</span>
+              {flip.quantity === null ? (
+                <a href={BUYING_LIMITS_URL} target="_blank" rel="noreferrer">
+                  No known buy limit
+                </a>
+              ) : (
+                <>
+                  {formatGp(flip.quantity)}
+                  <span className="muted"> {flip.quantity === item.buyLimit ? 'buy limit' : 'budget'}</span>
+                </>
               )}
             </dd>
             <dt>Traded in 5 min</dt>
@@ -60,6 +66,12 @@ export function ItemDetails({ flip, basis, nowSeconds }: ItemDetailsProps) {
             <dt className="total">Est. profit</dt>
             <dd className={`total ${tone(flip.estimatedProfit)}`}>{formatSignedGp(flip.estimatedProfit)}</dd>
           </dl>
+          {item.buyLimit === null && (
+            <p className="details-note">
+              The wiki doesn&rsquo;t document this item&rsquo;s buy limit, so there&rsquo;s no telling how many you could
+              buy in four hours. Its profit isn&rsquo;t estimated.
+            </p>
+          )}
         </section>
 
         <section>
@@ -131,8 +143,8 @@ export function fillNote(flip: Flip): string {
   switch (flip.limitedBy) {
     case 'volume':
       return 'volume-capped';
-    case 'cashStack':
-      return 'cash-capped';
+    case 'budget':
+      return 'budget-capped';
     case 'buyLimit':
       return 'full limit';
     default:

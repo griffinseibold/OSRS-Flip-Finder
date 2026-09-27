@@ -71,6 +71,25 @@ class StartApplicationTests {
 	}
 
 	@Test
+	void budgetHidesFlipsThatCostMore() throws Exception {
+		String insert = """
+				INSERT INTO items (
+				  id, name, members, buy_limit, high_price, low_price,
+				  high_price_volume_5m, low_price_volume_5m, updated_at
+				) VALUES (?, ?, 1, 8, ?, ?, 5, 5, '2026-09-27T15:00:00Z')
+				""";
+		jdbc.update(insert, 1, "Affordable", 9_500_000, 9_000_000);
+		jdbc.update(insert, 2, "Too dear", 12_500_000, 12_000_000);
+
+		mockMvc.perform(get("/api/flips").param("budget", "10000000"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.total").value(1))
+				.andExpect(jsonPath("$.items[0].item.name").value("Affordable"))
+				.andExpect(jsonPath("$.items[0].quantity").value(1))
+				.andExpect(jsonPath("$.items[0].limitedBy").value("budget"));
+	}
+
+	@Test
 	void unknownFlipSortIsRejected() throws Exception {
 		mockMvc.perform(get("/api/flips").param("sort", "bogus"))
 				.andExpect(status().isBadRequest());
