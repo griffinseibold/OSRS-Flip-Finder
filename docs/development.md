@@ -9,7 +9,6 @@ How to build, test and run Flip Finder from source, with or without the
 | [`frontend/`](../frontend) | React web app (TypeScript, Vite) |
 | [`chart/flipfinder/`](../chart/flipfinder) | Helm chart for the homelab |
 | [`deploy/`](../deploy) | Argo CD Application that registers the chart |
-| [`runelite-plugin/`](../runelite-plugin) | [RuneLite plugin](runelite-plugin.md) that reports account data (Java 11, Gradle) |
 | [`Dockerfile`](../Dockerfile) | Builds the web app and API into one image |
 
 ## Backend
@@ -86,6 +85,12 @@ In PowerShell, set it with `$env:FLIPFINDER_API_URL = "..."` first.
 `npm test` runs the unit tests and `npm run build` makes a type-checked
 production build.
 
+## RuneLite plugin
+
+The [RuneLite plugin](https://github.com/griffinseibold/flip-finder-plugin)
+that reports account data to the homelab version lives in its own repository,
+ready for the RuneLite Plugin Hub.
+
 ## Container
 
 The Dockerfile builds the frontend, bundles it into the Spring Boot jar and
@@ -113,9 +118,9 @@ To try a build on the homelab itself, see
 
 ## CI and releases
 
-[CI](../.github/workflows/ci.yaml) runs the backend tests, frontend tests,
-RuneLite plugin build and Helm chart lint on every pull request and push.
-Pushes also publish the image to `ghcr.io/griffinseibold/osrs-flip-finder`:
+[CI](../.github/workflows/ci.yaml) runs the backend tests, frontend tests and
+Helm chart lint on every pull request and push. Pushes also publish the image
+to `ghcr.io/griffinseibold/osrs-flip-finder`:
 
 | Push | Image tags |
 | --- | --- |
