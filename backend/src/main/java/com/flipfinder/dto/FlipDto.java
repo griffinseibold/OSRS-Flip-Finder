@@ -23,8 +23,8 @@ public class FlipDto {
     @Schema(description = "Margin as a fraction of the buy price")
     public Double roi;
 
-    @Schema(description = "One four-hour buy limit, reduced to what the budget affords; "
-            + "null when the item has no known buy limit")
+    @Schema(description = "One four-hour buy limit, less what the account already bought, reduced to what "
+            + "the budget affords; null when the item has no known buy limit")
     public Long quantity;
 
     @Schema(description = "Margin across the whole quantity")
@@ -45,6 +45,12 @@ public class FlipDto {
 
     @Schema(description = "Unix seconds of the older of the latest instant-buy and instant-sell trades")
     public Long lastTradeTime;
+
+    @Schema(description = "Items the account already bought in its current buy limit window; null without one")
+    public Long alreadyBought;
+
+    @Schema(description = "Unix seconds when the account's buy limit window for this item resets; null without one")
+    public Long limitResetsAt;
 
     public enum LimitedBy {
         BUY_LIMIT("buyLimit"),

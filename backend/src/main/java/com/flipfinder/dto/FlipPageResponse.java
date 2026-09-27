@@ -8,4 +8,5 @@ public class FlipPageResponse extends PageResponse<FlipDto> {
     public Long searchMatches; // items whose name matches the search, ignoring other filters
     public Long pricesAsOf; // Unix seconds of the most recent trade across all items
     public FlipDto topFlip; // matching flip with the highest positive estimated profit
+    public Long budget; // the budget applied: the request's, or the account's coins
 }

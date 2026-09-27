@@ -3,6 +3,7 @@ package com.flipfinder.service;
 import com.flipfinder.dto.FlipDto;
 import com.flipfinder.dto.FlipPageResponse;
 import com.flipfinder.dto.ItemDto;
+import com.flipfinder.dto.RuneLiteSnapshot;
 import com.flipfinder.repository.ItemRepository;
 import com.flipfinder.service.FlipQuery.Direction;
 import com.flipfinder.service.FlipQuery.Membership;
@@ -12,9 +13,12 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.Function;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Ranks items as flips. Sort keys depend on the price basis and budget in
@@ -26,22 +30,26 @@ public class FlipService {
     static final int MAX_PAGE_SIZE = 200;
 
     private final ItemRepository repository;
+    private final AccountService accounts;
 
-    public FlipService(ItemRepository repository) {
+    public FlipService(ItemRepository repository, AccountService accounts) {
         this.repository = repository;
+        this.accounts = accounts;
     }
 
     public FlipPageResponse find(FlipQuery query, int page, int size) {
         return find(query, page, size, Instant.now().getEpochSecond());
     }
 
-    FlipPageResponse find(FlipQuery query, int page, int size, long nowSeconds) {
+    FlipPageResponse find(FlipQuery request, int page, int size, long nowSeconds) {
+        AccountView account = applyAccount(request, nowSeconds);
+        FlipQuery query = account.query();
         List<ItemDto> items = repository.findAll();
         String search = query.search().toLowerCase(Locale.ROOT);
 
         List<FlipDto> matches = items.stream()
                 .filter(item -> item.name.toLowerCase(Locale.ROOT).contains(search))
-                .map(item -> FlipCalculator.calculate(item, query.basis(), query.budget()))
+                .map(item -> price(item, query, account.buyLimitWindows().get(item.id)))
                 .filter(flip -> matchesFilters(flip, query, nowSeconds))
                 .sorted(comparator(query.sort(), query.direction()))
                 .toList();
@@ -74,7 +82,38 @@ public class FlipService {
                 .max()
                 .orElse(0);
         response.pricesAsOf = latestTrade > 0 ? latestTrade : null;
+        response.budget = query.budget();
         return response;
+    }
+
+    /** Prices an item, less what the account already bought in its buy limit window. */
+    private static FlipDto price(ItemDto item, FlipQuery query, RuneLiteSnapshot.BuyLimitWindow window) {
+        if (window == null) {
+            return FlipCalculator.calculate(item, query.basis(), query.budget());
+        }
+        FlipDto flip = FlipCalculator.calculate(item, query.basis(), query.budget(), window.bought);
+        flip.alreadyBought = (long) window.bought;
+        flip.limitResetsAt = window.startedAt + AccountService.BUY_LIMIT_WINDOW_SECONDS;
+        return flip;
+    }
+
+    /**
+     * The query as the requested account allows it: the account's coins are the
+     * budget unless one was given, and a free-to-play account cannot buy members
+     * items. Without an account the query is unchanged.
+     */
+    private AccountView applyAccount(FlipQuery query, long nowSeconds) {
+        if (query.account() == null) {
+            return new AccountView(query, Map.of());
+        }
+        RuneLiteSnapshot account = accounts.snapshot(query.account())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "RuneLite has not reported this account"));
+        Long budget = query.budget() != null ? query.budget() : AccountService.coins(account);
+        Membership membership = account.members ? query.membership() : Membership.F2P;
+        return new AccountView(query.forAccount(budget, membership), AccountService.activeWindows(account, nowSeconds));
+    }
+
+    private record AccountView(FlipQuery query, Map<Integer, RuneLiteSnapshot.BuyLimitWindow> buyLimitWindows) {
     }
 
     private static boolean matchesFilters(FlipDto flip, FlipQuery query, long nowSeconds) {

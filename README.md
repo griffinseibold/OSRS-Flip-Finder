@@ -37,6 +37,8 @@ between restarts, and will gain features that rely on the homelab.
   source, with and without the homelab, and how releases work.
 - [Homelab deployment](docs/homelab.md): the Helm chart, Argo CD and how
   updates reach the homelab.
+- [RuneLite plugin](docs/runelite-plugin.md): sends your membership, coins and
+  buy limits to the homelab version, so its flips fit your account.
 - [Price data](docs/price-data.md): where prices, trading volumes, buy limits
   and tax rules come from.
 

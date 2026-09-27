@@ -21,3 +21,11 @@ create table if not exists items (
 );
 
 create index if not exists idx_items_name on items (name);
+
+-- The latest data the RuneLite plugin sent about each account (homelab only).
+create table if not exists runelite_accounts (
+  account_hash  integer primary key,
+  display_name  text,
+  snapshot      text    not null,
+  received_at   text    not null
+);

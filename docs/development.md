@@ -9,6 +9,7 @@ How to build, test and run Flip Finder from source, with or without the
 | [`frontend/`](../frontend) | React web app (TypeScript, Vite) |
 | [`chart/flipfinder/`](../chart/flipfinder) | Helm chart for the homelab |
 | [`deploy/`](../deploy) | Argo CD Application that registers the chart |
+| [`runelite-plugin/`](../runelite-plugin) | [RuneLite plugin](runelite-plugin.md) that reports account data (Java 11, Gradle) |
 | [`Dockerfile`](../Dockerfile) | Builds the web app and API into one image |
 
 ## Backend
@@ -48,7 +49,9 @@ database, and a Spring profile chooses where it lives:
 - `local` (the default) keeps it in memory, so each restart starts empty and
   re-imports within a second.
 - `homelab` stores it in the file at `FLIPFINDER_DB_PATH`, `/data/flipfinder.db`
-  by default, on the homelab's persistent volume.
+  by default, on the homelab's persistent volume. It also turns on the
+  endpoints that receive data from the RuneLite plugin
+  (`flipfinder.runelite.enabled`).
 
 Their settings are in
 [`application-local.properties`](../backend/src/main/resources/application-local.properties)
@@ -110,9 +113,9 @@ To try a build on the homelab itself, see
 
 ## CI and releases
 
-[CI](../.github/workflows/ci.yaml) runs the backend tests, frontend tests and
-Helm chart lint on every pull request and push. Pushes also publish the image
-to `ghcr.io/griffinseibold/osrs-flip-finder`:
+[CI](../.github/workflows/ci.yaml) runs the backend tests, frontend tests,
+RuneLite plugin build and Helm chart lint on every pull request and push.
+Pushes also publish the image to `ghcr.io/griffinseibold/osrs-flip-finder`:
 
 | Push | Image tags |
 | --- | --- |

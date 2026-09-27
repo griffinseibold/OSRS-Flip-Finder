@@ -13,7 +13,9 @@ public record FlipQuery(
         // Coins available to flip with, or null for no limit.
         Long budget,
         Sort sort,
-        Direction direction) {
+        Direction direction,
+        // Account hash from the RuneLite plugin, or null.
+        Long account) {
 
     public FlipQuery {
         basis = basis == null ? PriceBasis.LATEST : basis;
@@ -24,6 +26,11 @@ public record FlipQuery(
         if (direction == null) {
             direction = sort == Sort.NAME ? Direction.ASC : Direction.DESC;
         }
+    }
+
+    /** This query with the budget and membership an account allows. */
+    FlipQuery forAccount(Long budget, Membership membership) {
+        return new FlipQuery(basis, search, membership, maxTradeAgeMinutes, minVolume5m, budget, sort, direction, account);
     }
 
     public enum PriceBasis {
