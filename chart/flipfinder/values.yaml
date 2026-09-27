@@ -1,0 +1,40 @@
+# SQLite uses one ReadWriteOnce volume and supports a single application writer.
+# Keep this at one replica when persistence is enabled.
+replicaCount: 1
+
+image:
+  repository: ghcr.io/griffinseibold/osrs-flip-finder
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+persistence:
+  enabled: true
+  size: 1Gi
+  # Empty uses the cluster's default StorageClass (standard in the homelab).
+  storageClassName: ""
+  mountPath: /data
+
+# Labels applied to the release namespace so the homelab Gateway can admit the
+# HTTPRoute. Override these values when deploying to another platform.
+namespace:
+  create: true
+  labels:
+    gateway.homelab/access: public
+
+httpRoute:
+  enabled: true
+  # With the defaults, the API is exposed as flipfinder.localhost.
+  domain: localhost
+  hostnames: []
+  parentRef:
+    name: homelab
+    namespace: gateway-system
+    sectionName: http
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 192Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

@@ -14,7 +14,7 @@ public class BulkIngestPoller {
         this.service = service;
     }
 
-    @Scheduled(fixedDelay = 600000)
+    @Scheduled(fixedDelayString = "${flipfinder.ingest.poll-delay-ms:600000}")
     public void poll() {
         service.fetchAndProcess();  // delegate the actual work
     }

@@ -3,6 +3,9 @@ package com.flipfinder.controller;
 import com.flipfinder.dto.*;
 import com.flipfinder.repository.ItemRepository;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -10,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
+@Tag(name = "Items", description = "Grand Exchange items available for flip analysis")
 public class ItemController {
 	private final ItemRepository repo;
 
@@ -18,6 +22,7 @@ public class ItemController {
 	}
 
 	@GetMapping("/api/items")
+	@Operation(summary = "List items", description = "Returns one page of Grand Exchange item records.")
 	public PageResponse<ItemDto> list(
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "25") int size) {

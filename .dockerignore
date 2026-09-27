@@ -1,0 +1,10 @@
+.git
+.github
+.idea
+.vscode
+**/target
+**/*.db
+chart
+README.md
+**/node_modules
+frontend/dist
