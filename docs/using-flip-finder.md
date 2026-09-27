@@ -66,8 +66,12 @@ upper bound: other flippers are competing for the same volume.
 
 The seller pays 2% of the sale price, rounded down and capped at 5M per item.
 Sales under 50 gp pay nothing, and so do a short list of exempt items such as
-bonds, some tools, low-level food and teleports. [Price data](price-data.md)
-lists the sources.
+some tools, low-level food and teleports. [Price data](price-data.md) lists
+the sources.
+
+Bonds are exempt too, but they are never listed as flips. A bond bought on the
+Grand Exchange comes back untradeable, and making it tradeable again costs 10%
+of its guide price, far more than a bond's margin.
 
 ## Filters
 
