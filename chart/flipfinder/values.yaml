@@ -20,16 +20,25 @@ namespace:
   create: true
   labels:
     gateway.homelab/access: public
+    # Also admits the route to the homelab's home-network HTTPS listener.
+    gateway.homelab/lan: "true"
 
 httpRoute:
   enabled: true
-  # With the defaults, the API is exposed as flipfinder.localhost.
-  domain: localhost
+  # With the defaults, the app is served as flipfinder.localhost on the
+  # homelab host and as flipfinder.lab.internal on the home network. Set
+  # hostnames to replace the generated names.
+  domains:
+    - localhost
+    - lab.internal
   hostnames: []
-  parentRef:
-    name: homelab
-    namespace: gateway-system
-    sectionName: http
+  parentRefs:
+    - name: homelab
+      namespace: gateway-system
+      sectionName: http
+    - name: homelab
+      namespace: gateway-system
+      sectionName: lan
 
 resources:
   requests:

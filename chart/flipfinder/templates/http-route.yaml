@@ -6,17 +6,18 @@ metadata:
   labels:
     app.kubernetes.io/name: {{ .Chart.Name }}
 spec:
-  {{- if .Values.httpRoute.hostnames }}
+  {{- $hostnames := .Values.httpRoute.hostnames }}
+  {{- if not $hostnames }}
+  {{- range .Values.httpRoute.domains }}
+  {{- $hostnames = append $hostnames (printf "%s.%s" $.Chart.Name .) }}
+  {{- end }}
+  {{- end }}
+  {{- with $hostnames }}
   hostnames:
-    {{- toYaml .Values.httpRoute.hostnames | nindent 4 }}
-  {{- else if .Values.httpRoute.domain }}
-  hostnames:
-    - {{ printf "%s.%s" .Chart.Name .Values.httpRoute.domain }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
   parentRefs:
-    - name: {{ .Values.httpRoute.parentRef.name }}
-      namespace: {{ .Values.httpRoute.parentRef.namespace }}
-      sectionName: {{ .Values.httpRoute.parentRef.sectionName }}
+    {{- toYaml .Values.httpRoute.parentRefs | nindent 4 }}
   rules:
     - matches:
         - path:

@@ -41,8 +41,10 @@ Plugin Hub, turn on its **Send account data** setting, and open your bank
 once.
 [RuneLite plugin](docs/runelite-plugin.md) has the details.
 
-Open <http://flipfinder.localhost:8080>. It opens on the **Chat** tab; **All
-flips** has the full table. Argo CD keeps it in step with this repository from
+Open <http://flipfinder.localhost:8080>, or
+`https://flipfinder.lab.internal` from a phone on your Wi-Fi once the homelab's
+[home network access](docs/homelab.md#registering-with-argo-cd) is set up. It
+opens on the **Chat** tab; **All flips** has the full table. Argo CD keeps it in step with this repository from
 then on, and its price database survives restarts.
 
 ## Learn more
